@@ -7,6 +7,7 @@ export async function login(curp, password) {
     const { token, user, message } = response.data;
     if (token) {
       localStorage.setItem('token', token);
+      localStorage.setItem('curp', curp); // Guardar CURP en localStorage
     }
     return { success: true, message, user };
   } catch (err) {
@@ -24,6 +25,14 @@ export async function register(curp, email, password, nombre, apellidos) {
     const msg = err.response?.data?.message || err.message || 'Error al registrarse';
     return { success: false, message: msg };
   }
+}
+
+/**
+ * Cierra la sesión del usuario
+ */
+export function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('curp');
 }
 
 // Puedes agregar más funciones según tus endpoints

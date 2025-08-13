@@ -17,7 +17,25 @@ const router = createRouter({
       name: 'register',
       component: () => import('../views/register/Register.vue'),
     },
+    {
+      path: '/aspirante',
+      name: 'aspirante-home',
+      component: () => import('../views/aspirante/Home.vue'),
+      meta: { requiresAuth: true }
+    },
   ],
 })
+
+// Guard para rutas protegidas
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token');
+  const curp = localStorage.getItem('curp');
+  
+  if (to.meta.requiresAuth && (!token || !curp)) {
+    next('/login');
+  } else {
+    next();
+  }
+});
 
 export default router

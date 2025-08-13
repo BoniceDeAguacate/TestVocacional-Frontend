@@ -42,7 +42,7 @@ async function handleLogin() {
     emit('login-success')
     setTimeout(() => {
       success.value = false
-      router.push('/home')
+      router.push('/aspirante')
     }, 800)
   } else {
     error.value = result.message
