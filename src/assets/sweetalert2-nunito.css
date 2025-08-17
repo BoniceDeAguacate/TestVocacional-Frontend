@@ -1,0 +1,35 @@
+/* Importar fuente Nunito */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
+
+/* Estilos para aplicar fuente Nunito a SweetAlert2 */
+
+/* Aplicar fuente Nunito a todos los elementos de SweetAlert2 */
+.swal2-popup {
+  font-family: 'Nunito', Arial, sans-serif !important;
+}
+
+.swal2-title {
+  font-family: 'Nunito', Arial, sans-serif !important;
+  font-weight: 700 !important;
+}
+
+.swal2-content {
+  font-family: 'Nunito', Arial, sans-serif !important;
+  font-weight: 400 !important;
+}
+
+.swal2-confirm,
+.swal2-cancel,
+.swal2-deny {
+  font-family: 'Nunito', Arial, sans-serif !important;
+  font-weight: 600 !important;
+}
+
+.swal2-input,
+.swal2-textarea {
+  font-family: 'Nunito', Arial, sans-serif !important;
+}
+
+.swal2-html-container {
+  font-family: 'Nunito', Arial, sans-serif !important;
+}

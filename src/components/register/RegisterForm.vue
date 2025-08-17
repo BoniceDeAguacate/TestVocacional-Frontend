@@ -22,6 +22,10 @@
       <label for="password">Contraseña</label>
       <input id="password" type="password" v-model="password" required />
     </div>
+    <div>
+      <label for="confirmPassword">Confirmar contraseña</label>
+      <input id="confirmPassword" type="password" v-model="confirmPassword" required />
+    </div>
     <button type="submit">Registrarse</button>
     <div v-if="error" class="error">{{ error }}</div>
     <div v-if="success" class="success">¡Registro exitoso! Ahora puedes iniciar sesión.</div>
@@ -36,12 +40,16 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { register as registerService } from '@/services/authService'
+import { useAlert } from '@/composables/useAlert'
+
+const { showError, showSuccess } = useAlert()
 
 const nombre = ref('')
 const apellidos = ref('')
 const curp = ref('')
 const email = ref('')
 const password = ref('')
+const confirmPassword = ref('')
 const error = ref('')
 const success = ref(false)
 const router = useRouter()
@@ -49,14 +57,21 @@ const router = useRouter()
 async function handleRegister() {
   error.value = ''
   success.value = false
+  
+  // Validar que las contraseñas coincidan
+  if (password.value !== confirmPassword.value) {
+    showError('Las contraseñas no coinciden. Por favor, verifica que ambas sean iguales.', 'Error de validación')
+    return
+  }
+  
   const result = await registerService(curp.value, email.value, password.value, nombre.value, apellidos.value)
   if (result.success) {
-    success.value = true
+    showSuccess('¡Tu cuenta ha sido creada exitosamente! Serás redirigido al login.', '¡Registro exitoso!')
     setTimeout(() => {
       router.push('/login')
-    }, 1200)
+    }, 2000)
   } else {
-    error.value = result.message
+    showError(result.message || 'Ocurrió un error durante el registro.', 'Error en el registro')
   }
 }
 

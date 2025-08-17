@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import MainLayout from '@/layouts/MainLayout.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -11,18 +12,41 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('../views/login/Login.vue'),
+      meta: { layout: 'login' }
     },
     {
       path: '/register',
       name: 'register',
       component: () => import('../views/register/Register.vue'),
+      meta: { layout: 'login' }
     },
     {
       path: '/aspirante',
-      name: 'aspirante-home',
-      component: () => import('../views/aspirante/Home.vue'),
-      meta: { requiresAuth: true }
+      component: MainLayout,
+      meta: { requiresAuth: true, layout: 'aspirante' },
+      children: [
+        {
+          path: '',
+          name: 'aspirante-home',
+          component: () => import('../views/aspirante/Home.vue'),
+        },
+        {
+          path: 'test',
+          name: 'aspirante-test',
+          component: () => import('../views/aspirante/TestVocacional.vue'),
+        },
+        {
+          path: 'resultados',
+          name: 'aspirante-resultados',
+          component: () => import('../views/aspirante/Resultados.vue'),
+        }
+      ]
     },
+    // Ruta de compatibilidad (se puede eliminar después)
+    {
+      path: '/test-vocacional',
+      redirect: '/aspirante/test'
+    }
   ],
 })
 

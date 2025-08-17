@@ -1,11 +1,5 @@
 <template>
-  <div class="resultados-container">
-    <!-- Header -->
-    <div class="header">
-      <h2 class="title">Resultados del Test Vocacional</h2>
-      <p class="subtitle">Aquí puedes ver tus resultados organizados por materia</p>
-    </div>
-
+  <div class="resultados-display">
     <!-- Loading state -->
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
@@ -13,7 +7,7 @@
     </div>
 
     <!-- Error state -->
-    <div v-else-if="error" class="error">
+    <div v-else-if="error" class="error"> 
       <div class="error-icon">⚠️</div>
       <h3>Error al cargar los resultados</h3>
       <p>{{ error }}</p>
@@ -32,7 +26,11 @@
           </div>
           <div class="stat-card">
             <span class="stat-number">{{ totalRespuestas }}</span>
-            <span class="stat-label">Respuestas Totales</span>
+            <span class="stat-label">Preguntas Respondidas</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-number">{{ totalRespuestasPositivas }}</span>
+            <span class="stat-label">Respuestas Positivas</span>
           </div>
         </div>
       </div>
@@ -49,7 +47,9 @@
             <div v-for="tipo in materia.tipos" :key="tipo.tipo" class="tipo-item">
               <div class="tipo-header">
                 <span class="tipo-label">{{ tipo.tipo_texto }}</span>
-                <span class="porcentaje">{{ calcularPorcentaje(tipo) }}%</span>
+                <span class="porcentaje" :class="{ 'sin-respuestas': calcularPorcentaje(tipo) === 0 }">
+                  {{ calcularPorcentaje(tipo) }}%
+                </span>
               </div>
               
               <div class="progress-bar">
@@ -76,9 +76,17 @@
         <h3>🎯 Materia Recomendada</h3>
         <div class="materia-recomendada">
           <h4>{{ formatearNombreMateria(materiaRecomendada.nombre) }}</h4>
-          <p>Basado en tu mayor puntuación combinada de aptitud e interés</p>
-          <div class="puntuacion-total">
+          <p v-if="materiaRecomendada.puntuacion > 0">
+            Basado en tu mayor puntuación combinada de aptitud e interés
+          </p>
+          <p v-else class="sin-preferencias">
+            No se encontraron preferencias marcadas. Te recomendamos realizar el test nuevamente respondiendo según tus verdaderos intereses.
+          </p>
+          <div class="puntuacion-total" v-if="materiaRecomendada.puntuacion > 0">
             Puntuación: {{ materiaRecomendada.puntuacion }}%
+          </div>
+          <div class="mensaje-reintento" v-else>
+            <p>💡 Consejo: Responde "Sí" a las actividades que realmente te gustan o en las que te sientes hábil.</p>
           </div>
         </div>
       </div>
@@ -89,6 +97,9 @@
       <div class="empty-icon">📝</div>
       <h3>No hay resultados disponibles</h3>
       <p>Aún no has completado el test vocacional</p>
+      <router-link to="/aspirante/test" class="btn-primary">
+        Realizar Test Vocacional
+      </router-link>
     </div>
   </div>
 </template>
@@ -97,7 +108,7 @@
 import { obtenerResultadosTest, obtenerCurpUsuario } from '../../services/aspirante/aspiranteService';
 
 export default {
-  name: 'ResultadosAspirante',
+  name: 'TablaResultados',
   data() {
     return {
       resultados: [],
@@ -111,6 +122,10 @@ export default {
     },
     
     totalRespuestas() {
+      return this.resultados.reduce((sum, r) => sum + r.total_preguntas_materia_tipo, 0);
+    },
+    
+    totalRespuestasPositivas() {
       return this.resultados.reduce((sum, r) => sum + r.total_respuestas_usuario, 0);
     },
     
@@ -136,21 +151,45 @@ export default {
       this.materiasAgrupadas.forEach(materia => {
         let puntuacionTotal = 0;
         let totalPreguntas = 0;
+        let hasRespuestas = false;
         
         materia.tipos.forEach(tipo => {
           const porcentaje = this.calcularPorcentaje(tipo);
           puntuacionTotal += porcentaje;
           totalPreguntas += tipo.total_preguntas_materia_tipo;
+          if (tipo.total_respuestas_usuario > 0) {
+            hasRespuestas = true;
+          }
         });
         
-        puntuacionesPorMateria[materia.nombre] = {
-          nombre: materia.nombre,
-          puntuacion: Math.round(puntuacionTotal / materia.tipos.length)
-        };
+        // Solo considerar materias que tengan al menos una respuesta positiva
+        if (hasRespuestas) {
+          puntuacionesPorMateria[materia.nombre] = {
+            nombre: materia.nombre,
+            puntuacion: Math.round(puntuacionTotal / materia.tipos.length)
+          };
+        }
       });
       
-      return Object.values(puntuacionesPorMateria)
-        .sort((a, b) => b.puntuacion - a.puntuacion)[0] || { nombre: '', puntuacion: 0 };
+      const materias = Object.values(puntuacionesPorMateria);
+      
+      // Si no hay materias con respuestas positivas, retornar la primera con mayor puntuación total
+      if (materias.length === 0) {
+        const todasMaterias = this.materiasAgrupadas.map(materia => {
+          let puntuacionTotal = 0;
+          materia.tipos.forEach(tipo => {
+            puntuacionTotal += this.calcularPorcentaje(tipo);
+          });
+          return {
+            nombre: materia.nombre,
+            puntuacion: Math.round(puntuacionTotal / materia.tipos.length)
+          };
+        });
+        
+        return todasMaterias.sort((a, b) => b.puntuacion - a.puntuacion)[0] || { nombre: 'No disponible', puntuacion: 0 };
+      }
+      
+      return materias.sort((a, b) => b.puntuacion - a.puntuacion)[0];
     }
   },
   async mounted() {
@@ -204,28 +243,8 @@ export default {
 </script>
 
 <style scoped>
-.resultados-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.title {
-  color: #2c3e50;
-  margin-bottom: 10px;
-  font-size: 2.5rem;
-  font-weight: 600;
-}
-
-.subtitle {
-  color: #7f8c8d;
-  font-size: 1.1rem;
+.resultados-display {
+  font-family: 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* Loading styles */
@@ -283,11 +302,12 @@ export default {
 
 /* Resumen styles */
 .resumen {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 30px;
-  border-radius: 15px;
-  margin-bottom: 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    text-align: center;
 }
 
 .resumen h3 {
@@ -297,8 +317,9 @@ export default {
 
 .stats {
   display: flex;
-  gap: 30px;
+  gap: 20px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .stat-card {
@@ -306,9 +327,12 @@ export default {
   flex-direction: column;
   align-items: center;
   background: rgba(255, 255, 255, 0.1);
-  padding: 20px;
+  padding: 18px 15px;
   border-radius: 10px;
   backdrop-filter: blur(10px);
+  min-width: 140px;
+  flex: 1;
+  max-width: 180px;
 }
 
 .stat-number {
@@ -403,6 +427,11 @@ export default {
   color: #2c3e50;
 }
 
+.porcentaje.sin-respuestas {
+  color: #95a5a6;
+  font-style: italic;
+}
+
 .progress-bar {
   width: 100%;
   height: 8px;
@@ -416,6 +445,7 @@ export default {
   height: 100%;
   border-radius: 4px;
   transition: width 0.6s ease-in-out;
+  min-width: 2px; /* Mínimo ancho visible aunque sea 0% */
 }
 
 .progress-fill.aptitud {
@@ -429,6 +459,11 @@ export default {
 .tipo-details {
   font-size: 0.9rem;
   color: #7f8c8d;
+}
+
+.no-respuestas {
+  font-style: italic;
+  color: #95a5a6;
 }
 
 /* Recomendación */
@@ -448,6 +483,25 @@ export default {
 .materia-recomendada h4 {
   font-size: 1.8rem;
   margin-bottom: 10px;
+}
+
+.sin-preferencias {
+  color: rgba(255, 255, 255, 0.9);
+  font-style: italic;
+  margin-bottom: 15px;
+}
+
+.mensaje-reintento {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 15px;
+  border-radius: 10px;
+  margin-top: 15px;
+}
+
+.mensaje-reintento p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .puntuacion-total {
@@ -472,6 +526,27 @@ export default {
   margin-bottom: 20px;
 }
 
+.btn-primary {
+  display: inline-block;
+  background: linear-gradient(45deg, #FF671F, #ff8f47);
+  color: white;
+  text-decoration: none;
+  padding: 15px 30px;
+  border-radius: 25px;
+  font-weight: 600;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 103, 31, 0.3);
+  margin-top: 20px;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 103, 31, 0.4);
+  text-decoration: none;
+  color: white;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .materias-grid {
@@ -481,14 +556,6 @@ export default {
   .stats {
     flex-direction: column;
     gap: 15px;
-  }
-  
-  .title {
-    font-size: 2rem;
-  }
-  
-  .resultados-container {
-    padding: 15px;
   }
 }
 </style>
