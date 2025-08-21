@@ -117,17 +117,17 @@ const cerrarSesion = async () => {
 }
 
 .nav-btn.active {
-  background: #3498db;
+  background: #FF671F;
   color: white;
 }
 
 .nav-btn.logout {
-  background: #e74c3c;
+  background: #5B3427;
   color: white;
 }
 
 .nav-btn.logout:hover {
-  background: #c0392b;
+  background: #4a2a1f;
 }
 
 /* Responsive */

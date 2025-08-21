@@ -1,34 +1,45 @@
 <template>
-  <header class="nav-header admin-navbar">
+  <header class="nav-header">
     <div class="nav-container">
-      <div class="logo">
+      <router-link to="/admin" class="logo">
         <img src="/UPQROO-logo.png" alt="UPQROO" class="logo-img">
-        <span class="logo-text">Panel Admin - UPQROO</span>
-      </div>
+        <span class="logo-text">Panel Administración</span>
+      </router-link>
       <nav class="nav-menu">
         <router-link 
-          to="/admin/dashboard" 
+          to="/admin" 
           class="nav-btn"
-          :class="{ active: $route.path.includes('/admin/dashboard') }"
+          :class="{ active: $route.path === '/admin' }"
         >
-          📊 Dashboard
+          Dashboard
         </router-link>
+        
         <router-link 
-          to="/admin/users" 
+          to="/admin/usuarios" 
           class="nav-btn"
-          :class="{ active: $route.path.includes('/admin/users') }"
+          :class="{ active: $route.path.includes('/admin/usuarios') }"
         >
-          👥 Usuarios
+          Usuarios
         </router-link>
+        
         <router-link 
-          to="/admin/tests" 
+          to="/admin/reportes" 
           class="nav-btn"
-          :class="{ active: $route.path.includes('/admin/tests') }"
+          :class="{ active: $route.path.includes('/admin/reportes') }"
         >
-          📋 Tests
+          Reportes
         </router-link>
+        
+        <router-link 
+          to="/admin/configuracion" 
+          class="nav-btn"
+          :class="{ active: $route.path.includes('/admin/configuracion') }"
+        >
+          Configuración
+        </router-link>
+        
         <button @click="cerrarSesion" class="nav-btn logout">
-          🚪 Cerrar Sesión
+          Cerrar Sesión
         </button>
       </nav>
     </div>
@@ -56,6 +67,8 @@ const cerrarSesion = async () => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
+
 /* Navigation Header */
 .nav-header {
   background: white;
@@ -65,12 +78,8 @@ const cerrarSesion = async () => {
   z-index: 100;
 }
 
-.admin-navbar {
-  border-bottom: 3px solid #e74c3c;
-}
-
 .nav-container {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
@@ -83,6 +92,19 @@ const cerrarSesion = async () => {
   display: flex;
   align-items: center;
   gap: 15px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.logo:hover {
+  background: rgba(255, 103, 31, 0.1);
+  transform: translateY(-1px);
+}
+
+.logo:active {
+  transform: translateY(0);
 }
 
 .logo-img {
@@ -93,8 +115,13 @@ const cerrarSesion = async () => {
 .logo-text {
   font-size: 1.3rem;
   font-weight: 600;
-  color: #e74c3c;
+  color: #2c3e50;
   font-family: 'Nunito', Arial, sans-serif;
+  transition: color 0.3s ease;
+}
+
+.logo:hover .logo-text {
+  color: #FF671F;
 }
 
 .nav-menu {
@@ -124,17 +151,17 @@ const cerrarSesion = async () => {
 }
 
 .nav-btn.active {
-  background: #e74c3c;
+  background: #FF671F;
   color: white;
 }
 
 .nav-btn.logout {
-  background: #34495e;
+  background: #5B3427;
   color: white;
 }
 
 .nav-btn.logout:hover {
-  background: #2c3e50;
+  background: #4a2a1f;
 }
 
 /* Responsive */

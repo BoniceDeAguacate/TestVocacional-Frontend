@@ -42,7 +42,14 @@ async function handleLogin() {
     emit('login-success')
     setTimeout(() => {
       success.value = false
-      router.push('/aspirante')
+      
+      // Redireccionar según el rol del usuario
+      const userRole = localStorage.getItem('userRole')
+      if (userRole === 'admin') {
+        router.push('/admin')
+      } else {
+        router.push('/aspirante')
+      }
     }, 800)
   } else {
     error.value = result.message

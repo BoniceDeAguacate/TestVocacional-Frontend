@@ -50,7 +50,8 @@ const NavbarComponent = computed(() => {
 
 /* Estilos para el contenido principal */
 main {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: #f8f9fa;
+  min-height: calc(100vh - 70px);
 }
 
 /* Responsive */

@@ -6,7 +6,18 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/login',
+      redirect: () => {
+        const token = localStorage.getItem('token')
+        const userRole = localStorage.getItem('userRole')
+        
+        if (token) {
+          // Si el usuario está logueado, redirigir según su rol
+          return userRole === 'admin' ? '/admin' : '/aspirante'
+        } else {
+          // Si no está logueado, ir al login
+          return '/login'
+        }
+      },
     },
     {
       path: '/login',
@@ -42,6 +53,47 @@ const router = createRouter({
         }
       ]
     },
+    // Rutas de administración
+    {
+      path: '/admin',
+      component: MainLayout,
+      meta: { requiresAuth: true, requiresAdmin: true, layout: 'admin' },
+      children: [
+        {
+          path: '',
+          name: 'admin-dashboard',
+          component: () => import('../views/admin/Admin.vue'),
+        },
+        {
+            path: 'usuarios',
+            name: 'GestionUsuarios',
+            component: () => import('@/views/admin/Usuarios.vue'),
+            meta: { requiredRole: 'admin' }
+          },
+        {
+          path: 'usuarios/:usuarioId/reporte',
+          name: 'UsuarioReporte',
+          component: () => import('../views/admin/UsuarioReporte.vue'),
+          props: true
+        },
+        {
+          path: 'usuarios/:usuarioId/resultados',
+          name: 'admin-resultados-usuario',
+          component: () => import('../views/admin/ResultadosUsuario.vue'),
+          props: true
+        },
+        {
+          path: 'reportes',
+          name: 'admin-reportes',
+          component: () => import('../views/admin/Reportes.vue'),
+        },
+        {
+          path: 'configuracion',
+          name: 'admin-configuracion',
+          component: () => import('../views/admin/Configuracion.vue'),
+        }
+      ]
+    },
     // Ruta de compatibilidad (se puede eliminar después)
     {
       path: '/test-vocacional',
@@ -54,12 +106,22 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token');
   const curp = localStorage.getItem('curp');
+  const userRole = localStorage.getItem('userRole');
   
+  // Verificar autenticación
   if (to.meta.requiresAuth && (!token || !curp)) {
     next('/login');
-  } else {
-    next();
+    return;
   }
+  
+  // Verificar permisos de administrador
+  if (to.meta.requiresAdmin && userRole !== 'admin') {
+    // Si no es admin, redirigir a la vista de aspirante
+    next('/aspirante');
+    return;
+  }
+  
+  next();
 });
 
 export default router

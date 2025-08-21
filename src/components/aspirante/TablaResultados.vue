@@ -73,7 +73,7 @@
 
       <!-- Materia recomendada -->
       <div class="recomendacion">
-        <h3>🎯 Materia Recomendada</h3>
+        <h3>🎯 Carreras recomendadas</h3>
         <div class="materia-recomendada">
           <h4>{{ formatearNombreMateria(materiaRecomendada.nombre) }}</h4>
           <p v-if="materiaRecomendada.puntuacion > 0">
@@ -82,6 +82,21 @@
           <p v-else class="sin-preferencias">
             No se encontraron preferencias marcadas. Te recomendamos realizar el test nuevamente respondiendo según tus verdaderos intereses.
           </p>
+          
+          <!-- Lista de carreras específicas -->
+          <div v-if="materiaRecomendada.puntuacion > 0" class="carreras-lista">
+            <h5>Carreras sugeridas:</h5>
+            <div class="carreras-grid">
+              <div 
+                v-for="carrera in formatearCarrerasRecomendadas(materiaRecomendada.nombre)" 
+                :key="carrera"
+                class="carrera-item"
+              >
+                {{ carrera }}
+              </div>
+            </div>
+          </div>
+          
           <div class="puntuacion-total" v-if="materiaRecomendada.puntuacion > 0">
             Puntuación: {{ materiaRecomendada.puntuacion }}%
           </div>
@@ -95,9 +110,9 @@
     <!-- Empty state -->
     <div v-else class="empty-state">
       <div class="empty-icon">📝</div>
-      <h3>No hay resultados disponibles</h3>
-      <p>Aún no has completado el test vocacional</p>
-      <router-link to="/aspirante/test" class="btn-primary">
+      <h3>{{ esAdmin ? 'Este usuario aún no ha completado el test' : 'No hay resultados disponibles' }}</h3>
+      <p>{{ esAdmin ? 'El usuario debe completar el test para ver sus resultados aquí.' : 'Aún no has completado el test vocacional' }}</p>
+      <router-link v-if="!esAdmin" to="/aspirante/test" class="btn-primary">
         Realizar Test Vocacional
       </router-link>
     </div>
@@ -109,6 +124,20 @@ import { obtenerResultadosTest, obtenerCurpUsuario } from '../../services/aspira
 
 export default {
   name: 'TablaResultados',
+  props: {
+    usuarioId: {
+      type: [String, Number],
+      default: null
+    },
+    usuarioCurp: {
+      type: String,
+      default: null
+    },
+    esAdmin: {
+      type: Boolean,
+      default: false
+    }
+  },
   data() {
     return {
       resultados: [],
@@ -201,10 +230,22 @@ export default {
       this.error = null;
       
       try {
-        const curp = obtenerCurpUsuario();
+        let curp;
         
-        if (!curp) {
-          throw new Error('No se encontró la CURP del usuario. Por favor, inicia sesión nuevamente.');
+        if (this.esAdmin && this.usuarioCurp) {
+          // Si es admin viendo resultados de otro usuario, usar el CURP pasado como prop
+          curp = this.usuarioCurp;
+        } else if (this.esAdmin && this.usuarioId) {
+          // Fallback: Si es admin pero solo tiene usuarioId, simular CURP
+          // TODO: En el futuro, esto debería obtener el CURP real del backend
+          curp = `CURP${this.usuarioId}`;
+        } else {
+          // Si es un aspirante viendo sus propios resultados
+          curp = obtenerCurpUsuario();
+          
+          if (!curp) {
+            throw new Error('No se encontró la CURP del usuario. Por favor, inicia sesión nuevamente.');
+          }
         }
         
         const response = await obtenerResultadosTest(curp);
@@ -237,12 +278,100 @@ export default {
         'artistica': 'Artes y Humanidades'
       };
       return nombres[nombre] || nombre.charAt(0).toUpperCase() + nombre.slice(1);
+    },
+
+    formatearCarrerasRecomendadas(materia) {
+      const carreras = {
+        'economica': [
+          'Administración de empresas',
+          'Administración de instituciones de servicio',
+          'Administración de mercados',
+          'Economía y finanzas internacionales',
+          'Administración de negocios',
+          'Contabilidad'
+        ],
+        'humanistica': [
+          'Sociología',
+          'Psicología',
+          'Antropología',
+          'Trabajo Social',
+          'Comunicación Social y periodismo',
+          'Filosofía',
+          'Ciencias políticas',
+          'Derecho',
+          'Ciencias forenses'
+        ],
+        'artistica': [
+          'Música',
+          'Artes plásticas',
+          'Teatro',
+          'Dibujo'
+        ],
+        'ingenieria': [
+          // Ingenierías
+          'Ingeniería financiera',
+          'Ingeniería Industrial',
+          'Ingeniería Informática',
+          'Ingeniería Eléctrica',
+          'Ingeniería de Mercados',
+          'Ingeniería de Petróleos',
+          'Ingeniería Química',
+          'Ingeniería Mecánica',
+          'Ingeniería de Alimentos',
+          'Ingeniería Civil',
+          'Ingeniería Ambiental',
+          'Ingeniería Agrícola',
+          'Ingeniería de Materiales',
+          'Ingeniería de Telecomunicaciones',
+          'Arquitectura',
+          'Diseño gráfico',
+          'Geología',
+          // Tecnologías
+          'Técnicos en enfermería',
+          'Técnicos en mecánica',
+          'Técnicos en contabilidad',
+          'Técnicos en periodismo',
+          'Técnicos en Recursos Humanos',
+          'Técnico Profesional en Realización y Producción en T.V.',
+          'Tecnólogo en Sistemas',
+          'Tecnólogo en Gestión Financiera',
+          'Tecnólogo en Salud Ocupacional'
+        ],
+        'defensa': [
+          'Carrera militar y de policía',
+          'Oficiales y suboficiales del ejército, la armada y la fuerza aérea',
+          'Oficiales y suboficiales de la policía nacional'
+        ],
+        'exactas': [
+          'Biología',
+          'Zoología',
+          'Zootecnia',
+          'Agronomía',
+          'Veterinaria'
+        ],
+        'salud': [
+          'Medicina',
+          'Enfermería',
+          'Odontología',
+          'Fisioterapia',
+          'Nutrición y Dietética',
+          'Psicología Clínica',
+          'Terapia Ocupacional',
+          'Fonoaudiología',
+          'Optometría',
+          'Bacteriología'
+        ]
+      };
+      
+      return carreras[materia] || [`Carreras relacionadas con ${this.formatearNombreMateria(materia)}`];
     }
   }
 };
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
+
 .resultados-display {
   font-family: 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -254,13 +383,14 @@ export default {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
+  color: #5B3427;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
+  border: 4px solid rgba(255, 103, 31, 0.2);
+  border-top: 4px solid #FF671F;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 20px;
@@ -275,7 +405,8 @@ export default {
 .error {
   text-align: center;
   padding: 40px 20px;
-  background: #ffe6e6;
+  background: rgba(255, 103, 31, 0.1);
+  border: 2px solid rgba(255, 103, 31, 0.2);
   border-radius: 10px;
   margin: 20px 0;
 }
@@ -283,10 +414,11 @@ export default {
 .error-icon {
   font-size: 3rem;
   margin-bottom: 15px;
+  color: #FF671F;
 }
 
 .retry-btn {
-  background: #e74c3c;
+  background: #FF671F;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -294,20 +426,22 @@ export default {
   cursor: pointer;
   margin-top: 15px;
   transition: background 0.3s;
+  font-weight: 600;
 }
 
 .retry-btn:hover {
-  background: #c0392b;
+  background: #e55a1a;
 }
 
 /* Resumen styles */
 .resumen {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #FF671F 0%, #5B3427 100%);
     color: white;
     padding: 30px;
     border-radius: 15px;
     margin-bottom: 30px;
     text-align: center;
+    box-shadow: 0 8px 25px rgba(255, 103, 31, 0.3);
 }
 
 .resumen h3 {
@@ -360,11 +494,13 @@ export default {
   padding: 25px;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s, box-shadow 0.3s;
+  border: 1px solid rgba(255, 103, 31, 0.1);
 }
 
 .materia-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 12px 35px rgba(255, 103, 31, 0.2);
+  border-color: rgba(255, 103, 31, 0.3);
 }
 
 .materia-header {
@@ -373,11 +509,11 @@ export default {
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 2px solid #ecf0f1;
+  border-bottom: 2px solid rgba(255, 103, 31, 0.2);
 }
 
 .materia-nombre {
-  color: #2c3e50;
+  color: #5B3427;
   font-size: 1.3rem;
   font-weight: 600;
   margin: 0;
@@ -385,6 +521,10 @@ export default {
 
 .materia-icon {
   font-size: 1.5rem;
+  padding: 8px;
+  background: rgba(255, 103, 31, 0.1);
+  border-radius: 50%;
+  color: #FF671F;
 }
 
 .tipos-container {
@@ -398,14 +538,17 @@ export default {
   padding: 15px;
   border-radius: 10px;
   border-left: 4px solid transparent;
+  transition: all 0.3s ease;
 }
 
 .tipo-item:has(.aptitud) {
-  border-left-color: #3498db;
+  border-left-color: #FF671F;
+  background: rgba(255, 103, 31, 0.05);
 }
 
 .tipo-item:has(.interes) {
-  border-left-color: #e74c3c;
+  border-left-color: #5B3427;
+  background: rgba(91, 52, 39, 0.05);
 }
 
 .tipo-header {
@@ -418,13 +561,13 @@ export default {
 .tipo-label {
   font-weight: 600;
   text-transform: capitalize;
-  color: #34495e;
+  color: #5B3427;
 }
 
 .porcentaje {
   font-weight: bold;
   font-size: 1.1rem;
-  color: #2c3e50;
+  color: #5B3427;
 }
 
 .porcentaje.sin-respuestas {
@@ -434,26 +577,26 @@ export default {
 
 .progress-bar {
   width: 100%;
-  height: 8px;
-  background: #ecf0f1;
-  border-radius: 4px;
+  height: 10px;
+  background: rgba(255, 103, 31, 0.1);
+  border-radius: 5px;
   overflow: hidden;
   margin-bottom: 8px;
 }
 
 .progress-fill {
   height: 100%;
-  border-radius: 4px;
-  transition: width 0.6s ease-in-out;
-  min-width: 2px; /* Mínimo ancho visible aunque sea 0% */
+  border-radius: 5px;
+  transition: width 0.8s ease-in-out;
+  min-width: 2px;
 }
 
 .progress-fill.aptitud {
-  background: linear-gradient(90deg, #3498db, #2980b9);
+  background: linear-gradient(90deg, #FF671F, #e55a1a);
 }
 
 .progress-fill.interes {
-  background: linear-gradient(90deg, #e74c3c, #c0392b);
+  background: linear-gradient(90deg, #5B3427, #4a2a1f);
 }
 
 .tipo-details {
@@ -468,11 +611,12 @@ export default {
 
 /* Recomendación */
 .recomendacion {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, #FF671F 0%, #5B3427 100%);
   color: white;
   padding: 30px;
   border-radius: 15px;
   text-align: center;
+  box-shadow: 0 8px 25px rgba(255, 103, 31, 0.3);
 }
 
 .recomendacion h3 {
@@ -504,6 +648,62 @@ export default {
   line-height: 1.4;
 }
 
+/* Estilos para las carreras recomendadas */
+.carreras-lista {
+  margin-top: 20px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.carreras-lista h4 {
+  color: #FFE0D0;
+  font-size: 1.3rem;
+  margin-bottom: 15px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.carreras-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.carrera-item {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 4px solid #FFE0D0;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  transition: all 0.3s ease;
+}
+
+.carrera-item:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 103, 31, 0.2);
+}
+
+@media (max-width: 768px) {
+  .carreras-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .carrera-item {
+    font-size: 0.85rem;
+    padding: 10px 12px;
+  }
+  
+  .carreras-lista h4 {
+    font-size: 1.1rem;
+  }
+}
+
 .puntuacion-total {
   font-size: 1.2rem;
   font-weight: bold;
@@ -518,12 +718,13 @@ export default {
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #7f8c8d;
+  color: #5B3427;
 }
 
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 20px;
+  color: #FF671F;
 }
 
 .btn-primary {
