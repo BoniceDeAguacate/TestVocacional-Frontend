@@ -35,21 +35,17 @@
         
         <div class="header-actions">
           <button @click="volverAlDashboard" class="btn-back">
-            ← Volver al Dashboard
-          </button>
-          <button @click="generarPDF" class="btn-pdf" :disabled="generandoPDF">
-            {{ generandoPDF ? 'Generando...' : '📄 Generar PDF' }}
+            Volver al Dashboard
           </button>
         </div>
       </div>
 
-      <!-- Tabla de resultados (reutilizando el componente de aspirante) -->
+      <!-- Tabla de resultados (componente específico para admin) -->
       <div class="resultados-section">
         <TablaResultados 
           v-if="usuarioInfo"
           :usuario-id="usuarioId" 
           :usuario-curp="usuarioInfo.curp"
-          :es-admin="true" 
         />
         <div v-else class="loading-resultados">
           <div class="loading-spinner"></div>
@@ -63,7 +59,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import TablaResultados from '@/components/aspirante/TablaResultados.vue'
+import TablaResultados from '@/components/admin/TablaResultados.vue'
 import { useAlert } from '@/composables/useAlert'
 import { obtenerUsuario } from '@/services/admin/adminService'
 
@@ -78,7 +74,6 @@ const nombreUsuario = computed(() => route.query.nombre || 'Usuario')
 // Estados reactivos
 const cargando = ref(true)
 const error = ref(null)
-const generandoPDF = ref(false)
 
 // Datos del usuario
 const usuarioInfo = ref({
@@ -159,27 +154,6 @@ const cargarReporte = async () => {
 
 const volverAlDashboard = () => {
   router.push('/admin')
-}
-
-const generarPDF = async () => {
-  try {
-    generandoPDF.value = true
-    
-    // Aquí implementarías la generación del PDF
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    await showSuccess(
-      'El reporte en PDF ha sido generado exitosamente',
-      'PDF Generado'
-    )
-  } catch (err) {
-    showError(
-      'Error al generar el PDF del reporte',
-      'Error en PDF'
-    )
-  } finally {
-    generandoPDF.value = false
-  }
 }
 
 // Lifecycle
@@ -309,7 +283,7 @@ onMounted(() => {
   gap: 10px;
 }
 
-.btn-back, .btn-pdf {
+.btn-back {
   padding: 12px 20px;
   border: none;
   border-radius: 8px;
@@ -319,9 +293,6 @@ onMounted(() => {
   transition: all 0.3s ease;
   font-family: 'Nunito', inherit;
   min-width: 150px;
-}
-
-.btn-back {
   background: #ecf0f1;
   color: #5B3427;
 }
@@ -329,22 +300,6 @@ onMounted(() => {
 .btn-back:hover {
   background: #d5dbdb;
   transform: translateY(-1px);
-}
-
-.btn-pdf {
-  background: #FF671F;
-  color: white;
-}
-
-.btn-pdf:hover:not(:disabled) {
-  background: #e55a1a;
-  transform: translateY(-1px);
-}
-
-.btn-pdf:disabled {
-  background: #bdc3c7;
-  cursor: not-allowed;
-  transform: none;
 }
 
 /* Stats section */

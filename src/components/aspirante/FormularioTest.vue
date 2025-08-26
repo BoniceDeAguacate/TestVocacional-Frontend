@@ -107,7 +107,7 @@
               :disabled="currentPage === 1"
               class="btn-nav btn-previous"
             >
-              ← Anterior
+              Anterior
             </button>
             
             <button 
@@ -117,7 +117,7 @@
               :class="{ 'btn-disabled': !isCurrentPageValid() }"
               class="btn-nav btn-next"
             >
-              Siguiente →
+              Siguiente
             </button>
             
             <button 

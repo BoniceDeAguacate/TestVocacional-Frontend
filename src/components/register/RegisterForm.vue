@@ -16,11 +16,30 @@
     </div>
     <div>
       <label for="email">Correo electrónico</label>
-      <input id="email" v-model="email" type="email" required />
+      <input 
+        id="email" 
+        v-model="email" 
+        type="email" 
+        required
+        :class="{ 'input-error': emailError, 'input-valid': emailValid }"
+        @input="validateEmail"
+      />
+      <div v-if="emailError" class="field-error">{{ emailErrorMessage }}</div>
+      <div v-if="emailValid" class="field-success">✓ Email válido</div>
     </div>
     <div>
       <label for="password">Contraseña</label>
-      <input id="password" type="password" v-model="password" required />
+      <input 
+        id="password" 
+        type="password" 
+        v-model="password" 
+        required 
+        minlength="6"
+        :class="{ 'input-error': passwordError, 'input-valid': passwordValid }"
+        @input="validatePassword"
+      />
+      <div v-if="passwordError" class="field-error">{{ passwordErrorMessage }}</div>
+      <div v-if="passwordValid" class="field-success">✓ Contraseña válida</div>
     </div>
     <div>
       <label for="confirmPassword">Confirmar contraseña</label>
@@ -54,9 +73,79 @@ const error = ref('')
 const success = ref(false)
 const router = useRouter()
 
+// Estados de validación de contraseña
+const passwordError = ref(false)
+const passwordValid = ref(false)
+const passwordErrorMessage = ref('')
+
+// Estados de validación de email
+const emailError = ref(false)
+const emailValid = ref(false)
+const emailErrorMessage = ref('')
+
+function validateEmail() {
+  const emailValue = email.value
+  
+  if (emailValue.length === 0) {
+    emailError.value = false
+    emailValid.value = false
+    emailErrorMessage.value = ''
+    return
+  }
+  
+  // Expresión regular para validar email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  
+  if (!emailRegex.test(emailValue)) {
+    emailError.value = true
+    emailValid.value = false
+    emailErrorMessage.value = 'Ingresa un email válido (ejemplo: usuario@dominio.com)'
+    return
+  }
+  
+  emailError.value = false
+  emailValid.value = true
+  emailErrorMessage.value = ''
+}
+
+function validatePassword() {
+  const passwordValue = password.value
+  
+  if (passwordValue.length === 0) {
+    passwordError.value = false
+    passwordValid.value = false
+    passwordErrorMessage.value = ''
+    return
+  }
+  
+  if (passwordValue.length < 6) {
+    passwordError.value = true
+    passwordValid.value = false
+    passwordErrorMessage.value = 'La contraseña debe tener al menos 6 caracteres'
+    return
+  }
+  
+  passwordError.value = false
+  passwordValid.value = true
+  passwordErrorMessage.value = ''
+}
+
 async function handleRegister() {
   error.value = ''
   success.value = false
+  
+  // Validar email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email.value)) {
+    showError('Por favor ingresa un email válido.', 'Error de validación')
+    return
+  }
+  
+  // Validar longitud de contraseña
+  if (password.value.length < 6) {
+    showError('La contraseña debe tener al menos 6 caracteres.', 'Error de validación')
+    return
+  }
   
   // Validar que las contraseñas coincidan
   if (password.value !== confirmPassword.value) {
@@ -171,5 +260,30 @@ function goToLogin() {
   cursor: pointer;
   text-decoration: underline;
   font-weight: 700;
+}
+
+/* Estilos para validación de contraseña */
+.register-form input.input-error {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.register-form input.input-valid {
+  border-color: #388e3c;
+  box-shadow: 0 0 0 3px rgba(56, 142, 60, 0.1);
+}
+
+.register-form .field-error {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+.register-form .field-success {
+  color: #388e3c;
+  font-size: 0.8rem;
+  margin-top: 5px;
+  font-weight: 500;
 }
 </style>

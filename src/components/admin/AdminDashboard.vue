@@ -89,6 +89,7 @@
           :resumen="usuario.resumen"
           @ver-detalles="verDetallesUsuario"
           @ver-resultados="verResultadosUsuario"
+          @borrar-resultados="borrarResultadosUsuario"
         />
       </div>
     </div>
@@ -123,12 +124,12 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import UsuarioCard from '@/components/admin/UsuarioCard.vue'
-import { obtenerDashboardAdmin } from '@/services/admin/adminService'
+import { obtenerDashboardAdmin, borrarResultadosUsuario as borrarResultadosApi } from '@/services/admin/adminService'
 import { useAlert } from '@/composables/useAlert'
 
 // Composables
 const router = useRouter()
-const { showError, showSuccess } = useAlert()
+const { showError, showSuccess, showConfirm } = useAlert()
 
 // Estado reactivo
 const cargando = ref(false)
@@ -256,6 +257,41 @@ const verResultadosUsuario = (usuario) => {
       params: { usuarioId: usuario.id },
       query: { nombre: `${usuario.nombre} ${usuario.apellidos}` }
     })
+  }
+}
+
+const borrarResultadosUsuario = async (usuario) => {
+  // Confirmar eliminación con SweetAlert
+  const resultado = await showConfirm(
+    `¿Estás seguro de que deseas eliminar todos los resultados del test de "${usuario.nombre} ${usuario.apellidos}"?\n\nEsta acción no se puede deshacer.`,
+    'Confirmar eliminación de resultados'
+  )
+  
+  if (!resultado.isConfirmed) {
+    return
+  }
+  
+  try {
+    const respuesta = await borrarResultadosApi(usuario.curp)
+    
+    if (respuesta.success) {
+      // Actualizar el estado local del usuario
+      const indiceUsuario = usuarios.value.findIndex(u => u.id === usuario.id)
+      if (indiceUsuario !== -1) {
+        usuarios.value[indiceUsuario].resumen.total_respuestas = 0
+        usuarios.value[indiceUsuario].carrera_recomendada = null
+      }
+      
+      await showSuccess('Resultados eliminados exitosamente', 'Resultados eliminados')
+      
+      // Recargar el dashboard para obtener datos actualizados
+      await cargarDashboard(paginaActual.value)
+    } else {
+      await showError(respuesta.message, 'Error al eliminar resultados')
+    }
+  } catch (error) {
+    console.error('Error al eliminar resultados:', error)
+    await showError('Error inesperado al eliminar los resultados', 'Error del sistema')
   }
 }
 

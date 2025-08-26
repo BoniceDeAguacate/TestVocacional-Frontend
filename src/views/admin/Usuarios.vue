@@ -1,179 +1,112 @@
 <template>
-  <div class="usuarios-management">
-    <!-- Header con acciones -->
-    <div class="management-header">
-      <div class="header-info">
-        <h1 class="page-title">Gestión de Usuarios</h1>
-        <p class="page-subtitle">Administra todos los usuarios registrados en el sistema</p>
-      </div>
-      <div class="header-actions">
-        <button @click="exportarUsuarios" class="btn-export" :disabled="exportando">
-          {{ exportando ? 'Exportando...' : '📤 Exportar' }}
-        </button>
-        <button @click="mostrarModalCrear" class="btn-create">
-          ➕ Nuevo Usuario
-        </button>
+  <div class="usuarios-crud">
+    <!-- Header con diseño de 2 columnas -->
+    <div class="crud-header">
+      <div class="header-grid">
+        <!-- Columna 1: Texto (2 filas) -->
+        <div class="text-column">
+          <h1 class="page-title">Gestión de Usuarios</h1>
+          <p class="page-subtitle">Administra todos los usuarios registrados en el sistema</p>
+        </div>
+        
+        <!-- Columna 2: Barra de búsqueda -->
+        <div class="search-column">
+          <div class="search-container">
+            <div class="search-input-wrapper">
+              <span class="search-icon"><i class="fas fa-search"></i></span>
+              <input 
+                v-model="filtros.busqueda"
+                type="text" 
+                placeholder="Buscar por nombre, email o CURP..."
+                class="search-input"
+                @input="buscarUsuarios"
+              >
+              <button 
+                v-if="filtros.busqueda"
+                @click="limpiarBusqueda"
+                class="clear-search"
+              >
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Filtros avanzados -->
-    <div class="filters-section">
-      <div class="filters-grid">
-        <div class="filter-group">
-          <label>Buscar</label>
-          <input 
-            v-model="filtros.busqueda"
-            type="text" 
-            placeholder="Nombre, email o CURP..."
-            class="filter-input"
-          >
-        </div>
-        
-        <div class="filter-group">
-          <label>Estado del Test</label>
-          <select v-model="filtros.estado" class="filter-select">
-            <option value="">Todos los estados</option>
-            <option value="completado">Test Completado</option>
-            <option value="parcial">Test Parcial</option>
-            <option value="pendiente">Test Pendiente</option>
-          </select>
-        </div>
-        
-        <div class="filter-group">
-          <label>Carrera Recomendada</label>
-          <select v-model="filtros.carrera" class="filter-select">
-            <option value="">Todas las carreras</option>
-            <option value="salud">Ciencias de la Salud</option>
-            <option value="ingenieria">Ingeniería</option>
-            <option value="humanistica">Ciencias Humanísticas</option>
-            <option value="exactas">Ciencias Exactas</option>
-            <option value="economica">Ciencias Económicas</option>
-            <option value="defensa">Defensa y Seguridad</option>
-            <option value="artistica">Artes y Humanidades</option>
-            <option value="sin-carrera">Sin carrera asignada</option>
-          </select>
-        </div>
-        
-        <div class="filter-group">
-          <label>Fecha de Registro</label>
-          <input 
-            v-model="filtros.fecha" 
-            type="date" 
-            class="filter-input"
-          >
-        </div>
-      </div>
-      
-      <div class="filters-actions">
-        <button @click="limpiarFiltros" class="btn-clear">
-          🗑️ Limpiar Filtros
-        </button>
-        <button @click="aplicarFiltros" class="btn-apply">
-          🔍 Aplicar Filtros
-        </button>
-      </div>
-    </div>
+    <!-- Filtros y búsqueda - ELIMINADO porque ahora está en el header -->
 
-    <!-- Loading state -->
+    <!-- Estadísticas rápidas -->
     <div v-if="cargando" class="loading-container">
-      <div class="loading-spinner"></div>
-      <p class="loading-text">Cargando usuarios...</p>
+      <div class="spinner"></div>
+      <p>Cargando usuarios...</p>
     </div>
 
     <!-- Error state -->
     <div v-else-if="error" class="error-container">
-      <h3 class="error-title">Error al cargar usuarios</h3>
-      <p class="error-message">{{ error }}</p>
+      <div class="error-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <h3>Error al cargar usuarios</h3>
+      <p>{{ error }}</p>
       <button @click="cargarUsuarios" class="btn-retry">Reintentar</button>
     </div>
 
     <!-- Tabla de usuarios -->
-    <div v-else class="table-section">
-      <div class="table-header">
-        <h3>{{ usuariosFiltrados.length }} usuario(s) encontrado(s)</h3>
-        <div class="table-controls">
-          <select v-model="itemsPorPagina" @change="cambiarItemsPorPagina" class="items-select">
-            <option value="10">10 por página</option>
-            <option value="25">25 por página</option>
-            <option value="50">50 por página</option>
-            <option value="100">100 por página</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="table-container">
+    <div v-else-if="usuariosFiltrados.length > 0" class="table-container">
+      <div class="table-wrapper">
         <table class="usuarios-table">
           <thead>
             <tr>
-              <th @click="ordenarPor('id')" class="sortable">
-                ID
-                <span class="sort-icon" v-if="ordenActual === 'id'">
-                  {{ direccionOrden === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th @click="ordenarPor('nombre')" class="sortable">
-                Nombre
-                <span class="sort-icon" v-if="ordenActual === 'nombre'">
-                  {{ direccionOrden === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th>Email</th>
+              <th>Usuario</th>
               <th>CURP</th>
-              <th>Estado del Test</th>
-              <th>Carrera Recomendada</th>
-              <th @click="ordenarPor('fecha_registro')" class="sortable">
-                Fecha Registro
-                <span class="sort-icon" v-if="ordenActual === 'fecha_registro'">
-                  {{ direccionOrden === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
+              <th>Email</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="usuario in usuariosPaginados" :key="usuario.id" class="usuario-row">
-              <td class="id-cell">#{{ usuario.id }}</td>
-              <td class="nombre-cell">
-                <div class="usuario-nombre">
-                  {{ usuario.nombre }} {{ usuario.apellidos }}
+            <tr 
+              v-for="usuario in usuariosPaginados" 
+              :key="usuario.id"
+              class="usuario-row"
+            >
+              <td>
+                <div class="user-info">
+                  <div class="user-avatar">
+                    {{ obtenerIniciales(usuario.nombre, usuario.apellidos) }}
+                  </div>
+                  <div class="user-details">
+                    <div class="user-name">{{ usuario.nombre }} {{ usuario.apellidos }}</div>
+                    <div class="user-id">ID: {{ usuario.id }}</div>
+                  </div>
                 </div>
               </td>
-              <td class="email-cell">{{ usuario.email }}</td>
-              <td class="curp-cell">{{ usuario.curp }}</td>
-              <td class="estado-cell">
-                <span class="estado-badge" :class="getEstadoClase(usuario)">
-                  {{ getEstadoTexto(usuario) }}
-                </span>
+              <td>
+                <span class="curp-badge">{{ usuario.curp }}</span>
               </td>
-              <td class="carrera-cell">
-                {{ formatearCarrera(usuario.carrera_recomendada) }}
+              <td>
+                <span class="email">{{ usuario.email }}</span>
               </td>
-              <td class="fecha-cell">
-                {{ formatearFecha(usuario.fecha_registro) }}
-              </td>
-              <td class="acciones-cell">
-                <div class="acciones-grupo">
+              <td>
+                <div class="action-buttons">
                   <button 
-                    @click="verReporte(usuario)" 
-                    class="btn-accion btn-ver"
-                    :disabled="!usuario.resumen || usuario.resumen.total_respuestas === 0"
-                    title="Ver Reporte"
+                    @click="verReporte(usuario.id, `${usuario.nombre} ${usuario.apellidos}`)"
+                    class="btn-action btn-report"
+                    title="Ver reporte"
                   >
-                    👁️
+                    <i class="fas fa-chart-bar"></i>
                   </button>
                   <button 
-                    @click="editarUsuario(usuario)" 
-                    class="btn-accion btn-editar"
-                    title="Editar Usuario"
+                    @click="abrirModalEdicion(usuario)"
+                    class="btn-action btn-edit"
+                    title="Editar usuario"
                   >
-                    ✏️
+                    <i class="fas fa-edit"></i>
                   </button>
                   <button 
-                    @click="eliminarUsuario(usuario)" 
-                    class="btn-accion btn-eliminar"
-                    title="Eliminar Usuario"
+                    @click="eliminarUsuario(usuario)"
+                    class="btn-action btn-delete"
+                    title="Eliminar usuario"
                   >
-                    🗑️
+                    <i class="fas fa-trash"></i>
                   </button>
                 </div>
               </td>
@@ -183,44 +116,189 @@
       </div>
 
       <!-- Paginación -->
-      <div class="pagination-section">
+      <div class="pagination-container">
         <div class="pagination-info">
-          <span>
-            Mostrando {{ (paginaActual - 1) * itemsPorPagina + 1 }} - 
-            {{ Math.min(paginaActual * itemsPorPagina, usuariosFiltrados.length) }} 
-            de {{ usuariosFiltrados.length }} usuarios
-          </span>
+          <span>{{ mensajePaginacion }}</span>
         </div>
-        
         <div class="pagination-controls">
           <button 
-            @click="irAPagina(paginaActual - 1)"
-            :disabled="paginaActual === 1"
+            @click="irAPagina(paginacionLocal.paginaActual - 1)"
+            :disabled="paginacionLocal.paginaActual <= 1"
             class="btn-pagination"
           >
-            ← Anterior
+            Anterior
           </button>
           
-          <div class="pagination-numbers">
-            <button 
-              v-for="pagina in paginasVisibles" 
+          <div class="page-numbers">
+            <button
+              v-for="pagina in obtenerPaginasVisibles()"
               :key="pagina"
               @click="irAPagina(pagina)"
-              :class="{ active: pagina === paginaActual }"
-              class="btn-pagina"
+              class="btn-page"
+              :class="{ 'active': pagina === paginacionLocal.paginaActual }"
             >
               {{ pagina }}
             </button>
           </div>
           
           <button 
-            @click="irAPagina(paginaActual + 1)"
-            :disabled="paginaActual === totalPaginas"
+            @click="irAPagina(paginacionLocal.paginaActual + 1)"
+            :disabled="paginacionLocal.paginaActual >= paginacionLocal.totalPaginas"
             class="btn-pagination"
           >
-            Siguiente →
+            Siguiente
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div v-else class="empty-state">
+      <div class="empty-icon"><i class="fas fa-users"></i></div>
+      <h3>No hay usuarios registrados</h3>
+      <p>Aún no hay usuarios en el sistema</p>
+      <button @click="mostrarModalCrear" class="btn-create">
+        <i class="fas fa-plus"></i> Crear primer usuario
+      </button>
+    </div>
+
+    <!-- Modal de edición de usuario -->
+    <div v-if="mostrarModal" class="modal-overlay" @click="cerrarModal">
+      <div class="modal-container" @click.stop>
+        <div class="modal-header">
+          <h2><i class="fas fa-edit"></i> Editar Usuario</h2>
+          <button @click="cerrarModal" class="btn-close"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <form @submit.prevent="guardarUsuario" class="modal-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nombre">Nombre *</label>
+              <input
+                id="nombre"
+                v-model="usuarioEdicion.nombre"
+                type="text"
+                class="form-input"
+                :class="{ 'error': erroresValidacion.nombre }"
+                placeholder="Ingresa el nombre"
+                required
+              >
+              <span v-if="erroresValidacion.nombre" class="error-message">
+                {{ erroresValidacion.nombre }}
+              </span>
+            </div>
+            
+            <div class="form-group">
+              <label for="apellidos">Apellidos *</label>
+              <input
+                id="apellidos"
+                v-model="usuarioEdicion.apellidos"
+                type="text"
+                class="form-input"
+                :class="{ 'error': erroresValidacion.apellidos }"
+                placeholder="Ingresa los apellidos"
+                required
+              >
+              <span v-if="erroresValidacion.apellidos" class="error-message">
+                {{ erroresValidacion.apellidos }}
+              </span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="email">Email *</label>
+              <input
+                id="email"
+                v-model="usuarioEdicion.email"
+                type="email"
+                class="form-input"
+                :class="{ 'error': erroresValidacion.email }"
+                placeholder="correo@ejemplo.com"
+                required
+              >
+              <span v-if="erroresValidacion.email" class="error-message">
+                {{ erroresValidacion.email }}
+              </span>
+            </div>
+            
+            <div class="form-group">
+              <label for="role">Rol *</label>
+              <select
+                id="role"
+                v-model="usuarioEdicion.role"
+                class="form-select"
+                :class="{ 'error': erroresValidacion.role }"
+                required
+              >
+                <option value="">Selecciona un rol</option>
+                <option value="aspirante">Aspirante</option>
+                <option value="admin">Administrador</option>
+              </select>
+              <span v-if="erroresValidacion.role" class="error-message">
+                {{ erroresValidacion.role }}
+              </span>
+              <small v-if="usuarioEdicion.role" class="form-help">
+                Rol actual: {{ usuarioEdicion.role === 'admin' ? 'Administrador' : 'Aspirante' }}
+              </small>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group full-width">
+              <label for="password">Nueva Contraseña (opcional)</label>
+              <input
+                id="password"
+                v-model="usuarioEdicion.password"
+                type="password"
+                class="form-input"
+                :class="{ 'error': erroresValidacion.password }"
+                placeholder="Dejar vacío para mantener la actual"
+                autocomplete="new-password"
+              >
+              <span v-if="erroresValidacion.password" class="error-message">
+                {{ erroresValidacion.password }}
+              </span>
+              <small class="form-help">
+                Si no deseas cambiar la contraseña, deja este campo vacío
+              </small>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group full-width">
+              <label>CURP (Solo lectura)</label>
+              <input
+                :value="usuarioEdicion.curp"
+                type="text"
+                class="form-input readonly"
+                readonly
+                disabled
+              >
+              <small class="form-help">
+                El CURP no puede ser modificado
+              </small>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button 
+              type="button" 
+              @click="cerrarModal" 
+              class="btn-cancel"
+              :disabled="guardandoUsuario"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              class="btn-save"
+              :disabled="guardandoUsuario || !formularioValido"
+            >
+              {{ guardandoUsuario ? 'Guardando...' : 'Guardar Cambios' }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -229,360 +307,622 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { formatearNombreCarrera, obtenerTodosLosUsuarios } from '@/services/admin/adminService'
+import { obtenerTodosLosUsuarios, actualizarUsuario, eliminarUsuario as eliminarUsuarioApi } from '@/services/admin/adminService'
+import { useAlert } from '@/composables/useAlert'
 
 const router = useRouter()
+const { showSuccess, showError, showConfirm } = useAlert()
 
 // Estados reactivos
+const usuarios = ref([])
 const cargando = ref(true)
 const error = ref(null)
 const exportando = ref(false)
-const usuarios = ref([])
 
-// Filtros
+// Estados del modal
+const mostrarModal = ref(false)
+const usuarioEdicion = ref({
+  id: null,
+  nombre: '',
+  apellidos: '',
+  email: '',
+  role: '',
+  password: '',
+  curp: ''
+})
+const guardandoUsuario = ref(false)
+const erroresValidacion = ref({})
+
+// Filtros y búsqueda
 const filtros = ref({
-  busqueda: '',
-  estado: '',
-  carrera: '',
-  fecha: ''
+  busqueda: ''
 })
 
-// Paginación
-const paginaActual = ref(1)
-const itemsPorPagina = ref(10)
+// Paginación del servidor
+const paginacion = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1
+})
 
-// Ordenamiento
-const ordenActual = ref('id')
-const direccionOrden = ref('desc')
+// Paginación local para filtros
+const paginacionLocal = ref({
+  paginaActual: 1,
+  tamanioPagina: 10,
+  totalPaginas: 1
+})
 
 // Computed properties
 const usuariosFiltrados = computed(() => {
-  let resultado = [...usuarios.value]
-
-  // Aplicar filtros
-  if (filtros.value.busqueda) {
-    const busqueda = filtros.value.busqueda.toLowerCase()
-    resultado = resultado.filter(usuario => 
-      usuario.nombre.toLowerCase().includes(busqueda) ||
-      usuario.apellidos.toLowerCase().includes(busqueda) ||
-      usuario.email.toLowerCase().includes(busqueda) ||
-      usuario.curp.toLowerCase().includes(busqueda)
-    )
+  if (!filtros.value.busqueda) {
+    return usuarios.value
   }
-
-  if (filtros.value.estado) {
-    resultado = resultado.filter(usuario => {
-      const estado = getEstadoUsuario(usuario)
-      return estado === filtros.value.estado
-    })
-  }
-
-  if (filtros.value.carrera) {
-    resultado = resultado.filter(usuario => {
-      if (filtros.value.carrera === 'sin-carrera') {
-        return !usuario.carrera_recomendada
-      }
-      return usuario.carrera_recomendada === filtros.value.carrera
-    })
-  }
-
-  if (filtros.value.fecha) {
-    resultado = resultado.filter(usuario => {
-      const fechaUsuario = new Date(usuario.fecha_registro).toISOString().split('T')[0]
-      return fechaUsuario === filtros.value.fecha
-    })
-  }
-
-  // Aplicar ordenamiento
-  resultado.sort((a, b) => {
-    let aVal = a[ordenActual.value]
-    let bVal = b[ordenActual.value]
-
-    if (ordenActual.value === 'nombre') {
-      aVal = `${a.nombre} ${a.apellidos}`
-      bVal = `${b.nombre} ${b.apellidos}`
-    }
-
-    if (direccionOrden.value === 'asc') {
-      return aVal > bVal ? 1 : -1
-    } else {
-      return aVal < bVal ? 1 : -1
-    }
-  })
-
-  return resultado
-})
-
-const totalPaginas = computed(() => {
-  return Math.ceil(usuariosFiltrados.value.length / itemsPorPagina.value)
+  
+  const busqueda = filtros.value.busqueda.toLowerCase()
+  return usuarios.value.filter(usuario => 
+    usuario.nombre.toLowerCase().includes(busqueda) ||
+    usuario.apellidos.toLowerCase().includes(busqueda) ||
+    usuario.email.toLowerCase().includes(busqueda) ||
+    usuario.curp.toLowerCase().includes(busqueda)
+  )
 })
 
 const usuariosPaginados = computed(() => {
-  const inicio = (paginaActual.value - 1) * itemsPorPagina.value
-  const fin = inicio + itemsPorPagina.value
+  const inicio = (paginacionLocal.value.paginaActual - 1) * paginacionLocal.value.tamanioPagina
+  const fin = inicio + paginacionLocal.value.tamanioPagina
   return usuariosFiltrados.value.slice(inicio, fin)
 })
 
-const paginasVisibles = computed(() => {
-  const total = totalPaginas.value
-  const actual = paginaActual.value
-  const rango = 2
-
-  let inicio = Math.max(1, actual - rango)
-  let fin = Math.min(total, actual + rango)
-
-  const paginas = []
-  for (let i = inicio; i <= fin; i++) {
-    paginas.push(i)
-  }
-  return paginas
+// Computed para validación del formulario
+const formularioValido = computed(() => {
+  // Validaciones básicas requeridas
+  const camposRequeridosValidos = usuarioEdicion.value.nombre.trim() &&
+         usuarioEdicion.value.apellidos.trim() &&
+         usuarioEdicion.value.email.trim() &&
+         usuarioEdicion.value.role
+  
+  // No debe haber errores de validación
+  const sinErrores = Object.keys(erroresValidacion.value).length === 0
+  
+  return camposRequeridosValidos && sinErrores
 })
 
-// Métodos
+// Computed para mensaje de paginación más inteligente
+const mensajePaginacion = computed(() => {
+  const total = usuariosFiltrados.value.length
+  const inicio = ((paginacionLocal.value.paginaActual - 1) * paginacionLocal.value.tamanioPagina) + 1
+  const fin = Math.min(paginacionLocal.value.paginaActual * paginacionLocal.value.tamanioPagina, total)
+  
+  if (total === 0) {
+    return 'No hay usuarios para mostrar'
+  }
+  
+  if (total === 1) {
+    return '1 usuario encontrado'
+  }
+  
+  if (total <= paginacionLocal.value.tamanioPagina) {
+    return `${total} usuarios en total`
+  }
+  
+  if (inicio === fin) {
+    return `Usuario ${inicio} de ${total}`
+  }
+  
+  return `Usuarios ${inicio} - ${fin} de ${total}`
+})
+
+// Watchers
+watch(usuariosFiltrados, (nuevosUsuarios) => {
+  paginacionLocal.value.totalPaginas = Math.ceil(nuevosUsuarios.length / paginacionLocal.value.tamanioPagina)
+  paginacionLocal.value.paginaActual = 1
+})
+
+watch(usuariosPaginados, () => {
+  // Reset pagination if needed
+})
+
+// Estado para controlar si el usuario ha interactuado con los campos
+const camposInteractuados = ref({
+  nombre: false,
+  apellidos: false,
+  email: false,
+  role: false,
+  password: false
+})
+
+// Watchers para validación en tiempo real con retroalimentación inmediata
+watch(() => usuarioEdicion.value.nombre, (nuevoNombre, valorAnterior) => {
+  // Marcar como interactuado si el usuario ha cambiado el valor
+  if (valorAnterior !== undefined) {
+    camposInteractuados.value.nombre = true
+  }
+  
+  // Validar solo si el campo ha sido interactuado
+  if (camposInteractuados.value.nombre) {
+    if (nuevoNombre.trim() === '') {
+      erroresValidacion.value.nombre = 'El nombre es requerido'
+    } else if (nuevoNombre.trim().length < 2) {
+      erroresValidacion.value.nombre = 'El nombre debe tener al menos 2 caracteres'
+    } else {
+      delete erroresValidacion.value.nombre
+    }
+  }
+})
+
+watch(() => usuarioEdicion.value.apellidos, (nuevosApellidos, valorAnterior) => {
+  // Marcar como interactuado si el usuario ha cambiado el valor
+  if (valorAnterior !== undefined) {
+    camposInteractuados.value.apellidos = true
+  }
+  
+  // Validar solo si el campo ha sido interactuado
+  if (camposInteractuados.value.apellidos) {
+    if (nuevosApellidos.trim() === '') {
+      erroresValidacion.value.apellidos = 'Los apellidos son requeridos'
+    } else if (nuevosApellidos.trim().length < 2) {
+      erroresValidacion.value.apellidos = 'Los apellidos deben tener al menos 2 caracteres'
+    } else {
+      delete erroresValidacion.value.apellidos
+    }
+  }
+})
+
+watch(() => usuarioEdicion.value.email, (nuevoEmail, valorAnterior) => {
+  // Marcar como interactuado si el usuario ha cambiado el valor
+  if (valorAnterior !== undefined) {
+    camposInteractuados.value.email = true
+  }
+  
+  // Validar solo si el campo ha sido interactuado
+  if (camposInteractuados.value.email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (nuevoEmail.trim() === '') {
+      erroresValidacion.value.email = 'El email es requerido'
+    } else if (!emailRegex.test(nuevoEmail)) {
+      erroresValidacion.value.email = 'El formato del email no es válido'
+    } else {
+      delete erroresValidacion.value.email
+    }
+  }
+})
+
+watch(() => usuarioEdicion.value.role, (nuevoRole, valorAnterior) => {
+  // Marcar como interactuado si el usuario ha cambiado el valor
+  if (valorAnterior !== undefined) {
+    camposInteractuados.value.role = true
+  }
+  
+  // Validar solo si el campo ha sido interactuado
+  if (camposInteractuados.value.role) {
+    if (!nuevoRole) {
+      erroresValidacion.value.role = 'El rol es requerido'
+    } else {
+      delete erroresValidacion.value.role
+    }
+  }
+})
+
+watch(() => usuarioEdicion.value.password, (nuevaPassword, valorAnterior) => {
+  // Marcar como interactuado si el usuario ha cambiado el valor
+  if (valorAnterior !== undefined) {
+    camposInteractuados.value.password = true
+  }
+  
+  // Validar siempre la contraseña para dar retroalimentación inmediata
+  if (nuevaPassword && nuevaPassword.trim() !== '') {
+    if (nuevaPassword.length < 6) {
+      erroresValidacion.value.password = 'La contraseña debe tener al menos 6 caracteres'
+    } else {
+      delete erroresValidacion.value.password
+    }
+  } else {
+    // Si el campo está vacío, no hay error (contraseña opcional)
+    delete erroresValidacion.value.password
+  }
+})
+
+// Métodos principales
 const cargarUsuarios = async () => {
   try {
     cargando.value = true
     error.value = null
-
-    // Intentar conectar con la API real
-    try {
-      const respuesta = await obtenerTodosLosUsuarios()
-      
-      if (respuesta.success) {
-        usuarios.value = respuesta.data
-        return
+    
+    const respuesta = await obtenerTodosLosUsuarios(paginacion.value.page, paginacion.value.pageSize)
+    
+    if (respuesta.success && respuesta.data) {
+      // Adaptarse a la estructura de respuesta del API
+      if (respuesta.data.items) {
+        usuarios.value = respuesta.data.items
+        paginacion.value = {
+          page: respuesta.data.page || 1,
+          pageSize: respuesta.data.pageSize || 10,
+          total: respuesta.data.total || 0,
+          totalPages: respuesta.data.totalPages || 1
+        }
+      } else {
+        // Fallback si la respuesta es directamente un array
+        usuarios.value = Array.isArray(respuesta.data) ? respuesta.data : []
+        paginacion.value.total = usuarios.value.length
       }
-    } catch (apiError) {
-      console.warn('API no disponible, usando datos simulados')
+    } else {
+      throw new Error(respuesta.message || 'Error al cargar usuarios')
     }
-    
-    // Fallback: usar datos simulados si la API no está disponible
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    usuarios.value = [
-      {
-        id: 6,
-        nombre: 'Edigatason',
-        apellidos: 'Robles',
-        email: 'Example@outlook.com',
-        curp: 'ROLE020901HCSBPDA9',
-        carrera_recomendada: 'artistica',
-        fecha_registro: '2025-01-15',
-        resumen: { total_respuestas: 97 }
-      },
-      {
-        id: 7,
-        nombre: 'Aaron',
-        apellidos: 'Mendez',
-        email: 'aaron@outlook.com',
-        curp: 'MEIA991204HQRNTR03',
-        carrera_recomendada: null,
-        fecha_registro: '2025-02-10',
-        resumen: { total_respuestas: 0 }
-      },
-      {
-        id: 8,
-        nombre: 'María',
-        apellidos: 'García López',
-        email: 'maria.garcia@email.com',
-        curp: 'GALM950315MDFRRR05',
-        carrera_recomendada: 'salud',
-        fecha_registro: '2025-01-20',
-        resumen: { total_respuestas: 97 }
-      },
-      {
-        id: 9,
-        nombre: 'Carlos',
-        apellidos: 'Hernández',
-        email: 'carlos.hernandez@email.com',
-        curp: 'HERC940822HDFRRL09',
-        carrera_recomendada: 'ingenieria',
-        fecha_registro: '2025-01-18',
-        resumen: { total_respuestas: 50 }
-      }
-    ]
-    
   } catch (err) {
     console.error('Error al cargar usuarios:', err)
-    error.value = 'Error al cargar la lista de usuarios'
+    error.value = err.message || 'Error al cargar los usuarios'
+    usuarios.value = []
   } finally {
     cargando.value = false
   }
 }
 
-const getEstadoUsuario = (usuario) => {
-  if (!usuario.resumen || usuario.resumen.total_respuestas === 0) return 'pendiente'
-  if (usuario.resumen.total_respuestas > 0 && usuario.carrera_recomendada) return 'completado'
-  return 'parcial'
+const refrescarDatos = () => {
+  cargarUsuarios()
 }
 
-const getEstadoClase = (usuario) => {
-  return getEstadoUsuario(usuario)
+const buscarUsuarios = () => {
+  // La búsqueda se hace automáticamente por el computed
 }
 
-const getEstadoTexto = (usuario) => {
-  const estado = getEstadoUsuario(usuario)
-  const textos = {
-    'pendiente': 'Pendiente',
-    'parcial': 'Parcial',
-    'completado': 'Completado'
-  }
-  return textos[estado]
+const limpiarBusqueda = () => {
+  filtros.value.busqueda = ''
 }
 
-const formatearCarrera = (carrera) => {
-  return formatearNombreCarrera(carrera)
+// Métodos de utilidad
+const obtenerIniciales = (nombre, apellidos) => {
+  const inicial1 = nombre?.charAt(0)?.toUpperCase() || ''
+  const inicial2 = apellidos?.charAt(0)?.toUpperCase() || ''
+  return inicial1 + inicial2
 }
 
-const formatearFecha = (fecha) => {
-  return new Date(fecha).toLocaleDateString('es-ES')
-}
-
-const ordenarPor = (campo) => {
-  if (ordenActual.value === campo) {
-    direccionOrden.value = direccionOrden.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    ordenActual.value = campo
-    direccionOrden.value = 'asc'
-  }
-}
-
-const limpiarFiltros = () => {
-  filtros.value = {
-    busqueda: '',
-    estado: '',
-    carrera: '',
-    fecha: ''
-  }
-  paginaActual.value = 1
-}
-
-const aplicarFiltros = () => {
-  paginaActual.value = 1
-}
-
-const cambiarItemsPorPagina = () => {
-  paginaActual.value = 1
-}
-
+// Métodos de paginación
 const irAPagina = (pagina) => {
-  if (pagina >= 1 && pagina <= totalPaginas.value) {
-    paginaActual.value = pagina
+  if (pagina >= 1 && pagina <= paginacionLocal.value.totalPaginas) {
+    paginacionLocal.value.paginaActual = pagina
   }
 }
 
-const verReporte = (usuario) => {
+const obtenerPaginasVisibles = () => {
+  const total = paginacionLocal.value.totalPaginas
+  const actual = paginacionLocal.value.paginaActual
+  const paginas = []
+  
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      paginas.push(i)
+    }
+  } else {
+    if (actual <= 4) {
+      for (let i = 1; i <= 5; i++) {
+        paginas.push(i)
+      }
+      paginas.push('...', total)
+    } else if (actual >= total - 3) {
+      paginas.push(1, '...')
+      for (let i = total - 4; i <= total; i++) {
+        paginas.push(i)
+      }
+    } else {
+      paginas.push(1, '...')
+      for (let i = actual - 1; i <= actual + 1; i++) {
+        paginas.push(i)
+      }
+      paginas.push('...', total)
+    }
+  }
+  
+  return paginas
+}
+
+// Métodos de acciones
+const verUsuario = (usuarioId) => {
+  // Implementar vista de detalles del usuario
+  console.log('Ver usuario:', usuarioId)
+}
+
+const verReporte = (usuarioId, nombre) => {
   router.push({
     name: 'UsuarioReporte',
-    params: { usuarioId: usuario.id },
-    query: { nombre: `${usuario.nombre} ${usuario.apellidos}` }
+    params: { usuarioId },
+    query: { nombre }
   })
 }
 
-const editarUsuario = (usuario) => {
-  alert(`Función en desarrollo - Editando usuario: ${usuario.nombre}`)
-  // TODO: Implementar modal de edición
+// Métodos del modal
+const abrirModalEdicion = (usuario) => {
+  // Normalizar el rol para asegurar compatibilidad
+  let rolUsuario = usuario.role || usuario.rol || 'aspirante'
+  
+  // Normalizar valores comunes del backend
+  if (rolUsuario.toLowerCase() === 'administrator' || rolUsuario.toLowerCase() === 'administrador') {
+    rolUsuario = 'admin'
+  } else if (rolUsuario.toLowerCase() === 'user' || rolUsuario.toLowerCase() === 'usuario') {
+    rolUsuario = 'aspirante'
+  }
+  
+  usuarioEdicion.value = {
+    id: usuario.id,
+    nombre: usuario.nombre || '',
+    apellidos: usuario.apellidos || '',
+    email: usuario.email || '',
+    role: rolUsuario,
+    password: '', // No cargar la contraseña por seguridad
+    curp: usuario.curp || ''
+  }
+  
+  erroresValidacion.value = {}
+  mostrarModal.value = true
+}
+
+const cerrarModal = () => {
+  mostrarModal.value = false
+  usuarioEdicion.value = {
+    id: null,
+    nombre: '',
+    apellidos: '',
+    email: '',
+    role: '',
+    password: '',
+    curp: ''
+  }
+  erroresValidacion.value = {}
+  // Reiniciar el estado de campos interactuados
+  camposInteractuados.value = {
+    nombre: false,
+    apellidos: false,
+    email: false,
+    role: false,
+    password: false
+  }
+}
+
+const validarFormulario = () => {
+  const errores = {}
+  
+  // Validar nombre
+  if (!usuarioEdicion.value.nombre.trim()) {
+    errores.nombre = 'El nombre es requerido'
+  } else if (usuarioEdicion.value.nombre.trim().length < 2) {
+    errores.nombre = 'El nombre debe tener al menos 2 caracteres'
+  }
+  
+  // Validar apellidos
+  if (!usuarioEdicion.value.apellidos.trim()) {
+    errores.apellidos = 'Los apellidos son requeridos'
+  } else if (usuarioEdicion.value.apellidos.trim().length < 2) {
+    errores.apellidos = 'Los apellidos deben tener al menos 2 caracteres'
+  }
+  
+  // Validar email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!usuarioEdicion.value.email.trim()) {
+    errores.email = 'El email es requerido'
+  } else if (!emailRegex.test(usuarioEdicion.value.email)) {
+    errores.email = 'El formato del email no es válido'
+  }
+  
+  // Validar rol
+  if (!usuarioEdicion.value.role) {
+    errores.role = 'El rol es requerido'
+  }
+  
+  // Validar contraseña (solo si se proporcionó una)
+  if (usuarioEdicion.value.password && usuarioEdicion.value.password.trim() !== '') {
+    if (usuarioEdicion.value.password.length < 6) {
+      errores.password = 'La contraseña debe tener al menos 6 caracteres'
+    }
+  }
+  
+  erroresValidacion.value = errores
+  return Object.keys(errores).length === 0
+}
+
+const guardarUsuario = async () => {
+  if (!validarFormulario()) {
+    return
+  }
+  
+  try {
+    guardandoUsuario.value = true
+    
+    // Preparar datos para enviar (solo los campos que no están vacíos)
+    const datosActualizacion = {
+      nombre: usuarioEdicion.value.nombre.trim(),
+      apellidos: usuarioEdicion.value.apellidos.trim(),
+      email: usuarioEdicion.value.email.trim(),
+      role: usuarioEdicion.value.role
+    }
+    
+    // Solo incluir password si se proporcionó
+    if (usuarioEdicion.value.password) {
+      datosActualizacion.password = usuarioEdicion.value.password
+    }
+    
+    const respuesta = await actualizarUsuario(usuarioEdicion.value.id, datosActualizacion)
+    
+    if (respuesta.success) {
+      // Actualizar usuario en la lista local
+      const indice = usuarios.value.findIndex(u => u.id === usuarioEdicion.value.id)
+      if (indice !== -1) {
+        usuarios.value[indice] = { ...usuarios.value[indice], ...respuesta.data }
+      }
+      
+      // Mostrar mensaje de éxito
+      await showSuccess('Usuario actualizado exitosamente', '¡Cambios guardados!')
+      
+      // Cerrar modal
+      cerrarModal()
+    } else {
+      // Mostrar error
+      await showError(respuesta.message, 'Error al actualizar usuario')
+    }
+  } catch (error) {
+    console.error('Error al guardar usuario:', error)
+    await showError('Error inesperado al guardar el usuario', 'Error del sistema')
+  } finally {
+    guardandoUsuario.value = false
+  }
 }
 
 const eliminarUsuario = async (usuario) => {
-  const confirmado = confirm(`¿Estás seguro de que quieres eliminar al usuario ${usuario.nombre} ${usuario.apellidos}?`)
-
-  if (confirmado) {
-    alert(`Función en desarrollo - Usuario ${usuario.nombre} eliminado`)
-    // TODO: Implementar eliminación real
+  // Confirmar eliminación con SweetAlert
+  const resultado = await showConfirm(
+    `¿Estás seguro de que deseas eliminar al usuario "${usuario.nombre} ${usuario.apellidos}"?\n\nEsta acción no se puede deshacer.`,
+    'Confirmar eliminación'
+  )
+  
+  if (!resultado.isConfirmed) {
+    return
   }
+  
+  try {
+    // Mostrar indicador de carga (opcional, podrías agregar un estado loading)
+    const respuesta = await eliminarUsuarioApi(usuario.id)
+    
+    if (respuesta.success) {
+      // Eliminar usuario de la lista local
+      const indice = usuarios.value.findIndex(u => u.id === usuario.id)
+      if (indice !== -1) {
+        usuarios.value.splice(indice, 1)
+      }
+      
+      // Actualizar contadores de paginación
+      paginacion.value.total = Math.max(0, paginacion.value.total - 1)
+      
+      // Mostrar mensaje de éxito
+      await showSuccess('Usuario eliminado exitosamente', 'Usuario eliminado')
+      
+      // Si la página actual se queda vacía, ir a la página anterior
+      if (usuariosPaginados.value.length === 0 && paginacionLocal.value.paginaActual > 1) {
+        paginacionLocal.value.paginaActual -= 1
+      }
+    } else {
+      // Mostrar error
+      await showError(respuesta.message, 'Error al eliminar usuario')
+    }
+  } catch (error) {
+    console.error('Error al eliminar usuario:', error)
+    await showError('Error inesperado al eliminar el usuario', 'Error del sistema')
+  }
+}
+
+const mostrarModalCrear = () => {
+  // Implementar creación de usuario
+  console.log('Crear nuevo usuario')
 }
 
 const exportarUsuarios = async () => {
   try {
     exportando.value = true
-    
-    // Simular exportación
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    alert('Exportación completada exitosamente')
+    // Implementar exportación
+    console.log('Exportar usuarios')
   } catch (err) {
-    alert('Error al exportar usuarios')
+    console.error('Error al exportar:', err)
   } finally {
     exportando.value = false
   }
 }
 
-const mostrarModalCrear = () => {
-  alert('Función en desarrollo - Creando nuevo usuario')
-  // TODO: Implementar modal de creación
-}
-
-// Watchers
-watch(filtros, () => {
-  paginaActual.value = 1
-}, { deep: true })
-
-// Lifecycle
+// Ciclo de vida
 onMounted(() => {
   cargarUsuarios()
 })
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
-
-.usuarios-management {
+.usuarios-crud {
   max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
-  font-family: 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Nunito', sans-serif;
 }
 
 /* Header */
-.management-header {
-  background: white;
-  border-radius: 10px;
-  padding: 30px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  display: flex;
-  justify-content: space-between;
+.crud-header {
+  margin-bottom: 30px;
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.header-grid {
+  display: grid;
+  grid-template-columns: 1fr minmax(300px, 400px);
+  gap: 30px;
   align-items: center;
-  gap: 20px;
+}
+
+/* Columna 1: Texto (2 filas) */
+.text-column {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0; /* Permite que el texto se contraiga */
 }
 
 .page-title {
   color: #5B3427;
-  margin: 0 0 5px 0;
+  margin: 0;
   font-size: 2rem;
   font-weight: 700;
 }
 
 .page-subtitle {
-  color: #7f8c8d;
+  color: #6c757d;
   margin: 0;
   font-size: 1.1rem;
 }
 
-.header-actions {
+/* Columna 2: Búsqueda */
+.search-column {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  min-width: 0; /* Permite que la búsqueda se contraiga */
 }
 
-.btn-export, .btn-create {
+.search-column .search-container {
+  margin-bottom: 0;
+  box-shadow: none;
+  width: 100%;
+  max-width: 400px;
+  min-width: 250px;
+}
+
+.search-column .search-input-wrapper {
+  width: 100%;
+}
+
+.btn-refresh, .btn-export, .btn-create {
   padding: 12px 20px;
   border: none;
-  border-radius: 8px;
-  font-size: 0.95rem;
+  border-radius: 10px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: 'Nunito', inherit;
+  font-size: 0.9rem;
+}
+
+.btn-refresh {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #545b62;
+  transform: translateY(-2px);
 }
 
 .btn-export {
-  background: #5B3427;
+  background: #28a745;
   color: white;
 }
 
 .btn-export:hover:not(:disabled) {
-  background: #4a2a1f;
+  background: #218838;
+  transform: translateY(-2px);
 }
 
 .btn-create {
@@ -591,105 +931,129 @@ onMounted(() => {
 }
 
 .btn-create:hover {
-  background: #e55a1a;
+  background: #5B3427;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 103, 31, 0.4);
 }
 
-.btn-export:disabled {
-  background: #bdc3c7;
+.btn-refresh:disabled, .btn-export:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
-/* Filters */
+/* Filtros */
 .filters-section {
   background: white;
-  border-radius: 10px;
   padding: 25px;
-  margin-bottom: 20px;
+  border-radius: 15px;
+  margin-bottom: 25px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.filters-grid {
+.search-input-wrapper {
+  position: relative;
+  width: 100%;
+  min-width: 200px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  color: #6c757d;
+}
+
+.search-input {
+  width: 100%;
+  min-width: 200px; /* Asegurar ancho mínimo */
+  padding: 15px 15px 15px 50px;
+  border: 2px solid #e9ecef;
+  border-radius: 25px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  box-sizing: border-box; /* Asegurar que el padding se incluya en el ancho */
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #FF671F;
+  box-shadow: 0 0 0 3px rgba(255, 103, 31, 0.1);
+}
+
+.clear-search {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #6c757d;
+  padding: 5px;
+}
+
+.clear-search:hover {
+  color: #dc3545;
+}
+
+/* Estadísticas */
+.stats-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
 }
 
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.filter-group label {
-  font-weight: 600;
-  color: #5B3427;
-  font-size: 0.9rem;
-}
-
-.filter-input, .filter-select {
-  padding: 10px 12px;
-  border: 2px solid #ecf0f1;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-family: 'Nunito', inherit;
-  transition: border-color 0.3s ease;
-}
-
-.filter-input:focus, .filter-select:focus {
-  outline: none;
-  border-color: #FF671F;
-}
-
-.filters-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
-.btn-clear, .btn-apply {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Nunito', inherit;
-}
-
-.btn-clear {
-  background: #ecf0f1;
-  color: #5B3427;
-}
-
-.btn-clear:hover {
-  background: #d5dbdb;
-}
-
-.btn-apply {
+.stat-card {
   background: #FF671F;
   color: white;
+  padding: 20px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 4px 15px rgba(255, 103, 31, 0.3);
+  transition: transform 0.3s ease;
 }
 
-.btn-apply:hover {
-  background: #e55a1a;
+.stat-card:hover {
+  transform: translateY(-3px);
 }
 
-/* Loading y Error */
+.stat-icon {
+  font-size: 2rem;
+  opacity: 0.9;
+}
+
+.stat-content h3 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.stat-content p {
+  margin: 5px 0 0 0;
+  opacity: 0.9;
+  font-size: 0.9rem;
+}
+
+/* Estados de carga */
 .loading-container, .error-container {
-  background: white;
-  border-radius: 10px;
-  padding: 60px 40px;
   text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 15px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
 }
 
-.loading-spinner {
+.spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid #ecf0f1;
+  border: 4px solid #f3f3f3;
   border-top: 4px solid #FF671F;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -701,223 +1065,193 @@ onMounted(() => {
   100% { transform: rotate(360deg); }
 }
 
-.loading-text {
-  font-size: 1.1rem;
-  color: #7f8c8d;
-  margin: 0;
-}
-
-.error-title {
-  color: #5B3427;
-  margin: 0 0 10px 0;
-  font-size: 1.5rem;
-}
-
-.error-message {
-  color: #7f8c8d;
-  margin: 0 0 20px 0;
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
 }
 
 .btn-retry {
   background: #FF671F;
   color: white;
   border: none;
-  padding: 12px 25px;
+  padding: 12px 24px;
   border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: background 0.3s ease;
-  font-family: 'Nunito', inherit;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin-top: 15px;
 }
 
 .btn-retry:hover {
-  background: #e55a1a;
+  background: #5B3427;
+  transform: translateY(-2px);
 }
 
-/* Table */
-.table-section {
-  background: white;
-  border-radius: 10px;
-  padding: 25px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #ecf0f1;
-}
-
-.table-header h3 {
-  color: #5B3427;
-  margin: 0;
-  font-size: 1.3rem;
-}
-
-.items-select {
-  padding: 8px 12px;
-  border: 2px solid #ecf0f1;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-family: 'Nunito', inherit;
-}
-
+/* Tabla */
 .table-container {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.table-wrapper {
   overflow-x: auto;
-  margin-bottom: 20px;
 }
 
 .usuarios-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
 }
 
 .usuarios-table th {
-  background: #f8f9fa;
-  color: #5B3427;
-  font-weight: 600;
-  padding: 15px 12px;
+  background: #FF671F;
+  color: white;
+  padding: 18px 15px;
   text-align: left;
-  border-bottom: 2px solid #ecf0f1;
-  position: sticky;
-  top: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.usuarios-table th.sortable {
-  cursor: pointer;
-  user-select: none;
-  position: relative;
+.usuarios-table th:first-child {
+  width: 200px;
+  text-align: center;
 }
 
-.usuarios-table th.sortable:hover {
-  background: #ecf0f1;
+.usuarios-table th:last-child {
+  width: 200px;
+  text-align: center;
 }
 
-.sort-icon {
-  margin-left: 5px;
-  color: #FF671F;
-}
-
-.usuarios-table td {
-  padding: 12px;
-  border-bottom: 1px solid #ecf0f1;
-  vertical-align: middle;
+.usuario-row {
+  border-bottom: 1px solid #e9ecef;
+  transition: all 0.3s ease;
 }
 
 .usuario-row:hover {
   background: #f8f9fa;
 }
 
-.id-cell {
-  font-weight: 600;
-  color: #5B3427;
+.usuarios-table td {
+  padding: 15px;
+  vertical-align: middle;
 }
 
-.usuario-nombre {
-  font-weight: 600;
-  color: #5B3427;
-}
-
-.email-cell {
-  color: #7f8c8d;
-  font-family: monospace;
-}
-
-.curp-cell {
-  color: #7f8c8d;
-  font-family: monospace;
-  font-size: 0.85rem;
-}
-
-.estado-badge {
-  padding: 4px 12px;
-  border-radius: 15px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.estado-badge.completado {
-  background: rgba(255, 103, 31, 0.1);
-  color: #FF671F;
-}
-
-.estado-badge.parcial {
-  background: rgba(91, 52, 39, 0.1);
-  color: #5B3427;
-}
-
-.estado-badge.pendiente {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.acciones-grupo {
+.user-info {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
 }
 
-.btn-accion {
-  padding: 6px 10px;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 32px;
+.user-avatar {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: #FF671F;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
-.btn-ver {
-  background: #FF671F;
+.user-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.user-id {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.curp-badge {
+  background: #e9ecef;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.email {
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn-action {
+  width: 35px;
+  height: 35px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: white;
 }
 
-.btn-ver:hover:not(:disabled) {
-  background: #e55a1a;
-}
-
-.btn-editar {
+.btn-view {
   background: #5B3427;
-  color: white;
 }
 
-.btn-editar:hover {
-  background: #4a2a1f;
+.btn-view:hover {
+  background: #4a2b1f;
+  transform: translateY(-2px);
 }
 
-.btn-eliminar {
-  background: #e74c3c;
-  color: white;
+.btn-report {
+  background: #6d3f2a;
 }
 
-.btn-eliminar:hover {
-  background: #c0392b;
+.btn-report:hover {
+  background: #5a3423;
+  transform: translateY(-2px);
 }
 
-.btn-accion:disabled {
-  background: #bdc3c7;
-  cursor: not-allowed;
+.btn-edit {
+  background: #7a4a2e;
 }
 
-/* Pagination */
-.pagination-section {
+.btn-edit:hover {
+  background: #653d26;
+  transform: translateY(-2px);
+}
+
+.btn-delete {
+  background: #8b5a3c;
+}
+
+.btn-delete:hover {
+  background: #754b32;
+  transform: translateY(-2px);
+}
+
+/* Paginación */
+.pagination-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 20px;
-  border-top: 1px solid #ecf0f1;
+  padding: 20px 25px;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
 }
 
 .pagination-info {
-  color: #7f8c8d;
+  color: #6c757d;
   font-size: 0.9rem;
 }
 
@@ -927,85 +1261,465 @@ onMounted(() => {
   gap: 10px;
 }
 
-.pagination-numbers {
+.btn-pagination {
+  padding: 8px 16px;
+  border: 1px solid #dee2e6;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.btn-pagination:hover:not(:disabled) {
+  background: #FF671F;
+  color: white;
+  border-color: #FF671F;
+}
+
+.btn-pagination:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-numbers {
   display: flex;
   gap: 5px;
 }
 
-.btn-pagination, .btn-pagina {
-  padding: 8px 12px;
-  border: none;
+.btn-page {
+  width: 35px;
+  height: 35px;
+  border: 1px solid #dee2e6;
+  background: white;
   border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-family: 'Nunito', inherit;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-pagination {
+.btn-page:hover {
   background: #FF671F;
   color: white;
+  border-color: #FF671F;
 }
 
-.btn-pagination:hover:not(:disabled) {
-  background: #e55a1a;
-}
-
-.btn-pagination:disabled {
-  background: #bdc3c7;
-  cursor: not-allowed;
-}
-
-.btn-pagina {
-  background: #ecf0f1;
-  color: #5B3427;
-}
-
-.btn-pagina:hover {
-  background: #d5dbdb;
-}
-
-.btn-pagina.active {
-  background: #FF671F;
+.btn-page.active {
+  background: #5B3427;
   color: white;
+  border-color: #5B3427;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.empty-icon {
+  font-size: 5rem;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  color: #495057;
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+}
+
+.empty-state p {
+  color: #6c757d;
+  margin-bottom: 30px;
+  font-size: 1.1rem;
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .usuarios-management {
-    padding: 15px;
+/* Tablets medianas */
+@media (max-width: 1024px) {
+  .header-grid {
+    grid-template-columns: 1fr minmax(250px, 350px);
+    gap: 20px;
   }
   
-  .management-header {
-    flex-direction: column;
+  .page-title {
+    font-size: 1.8rem;
+  }
+}
+
+/* Tablets pequeñas */
+@media (max-width: 900px) {
+  .header-grid {
+    grid-template-columns: 1fr;
     gap: 20px;
+  }
+  
+  .text-column {
     text-align: center;
   }
   
-  .header-actions {
-    width: 100%;
-    justify-content: center;
+  .search-column .search-container {
+    max-width: 100%;
+    min-width: auto;
   }
-  
-  .filters-grid {
+}
+
+/* Móviles */
+@media (max-width: 768px) {
+  .usuarios-crud {
+    padding: 15px;
+  }
+
+  .crud-header {
+    text-align: center;
+    padding: 20px;
+  }
+
+  .header-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .text-column {
+    text-align: center;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .page-subtitle {
+    font-size: 1rem;
+  }
+
+  .search-column .search-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: auto;
+  }
+
+  .stats-container {
     grid-template-columns: 1fr;
   }
-  
-  .table-header {
-    flex-direction: column;
-    gap: 15px;
-    align-items: stretch;
+
+  .search-input-wrapper {
+    max-width: none;
+  }
+
+  .search-input {
+    min-width: 150px;
+    font-size: 0.9rem;
+    padding: 12px 12px 12px 45px;
   }
   
-  .pagination-section {
-    flex-direction: column;
-    gap: 15px;
+  .search-icon {
+    left: 12px;
+    font-size: 1rem;
   }
   
-  .pagination-controls {
+  .clear-search {
+    right: 12px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Móviles muy pequeños */
+@media (max-width: 480px) {
+  .crud-header {
+    padding: 15px;
+  }
+  
+  .page-title {
+    font-size: 1.3rem;
+  }
+  
+  .page-subtitle {
+    font-size: 0.9rem;
+  }
+  
+  .search-input {
+    min-width: 120px;
+    padding: 10px 10px 10px 40px;
+  }
+  
+  .search-icon {
+    left: 10px;
+    font-size: 0.9rem;
+  }
+  
+  .clear-search {
+    right: 10px;
+  }
+
+  .table-wrapper {
+    font-size: 0.9rem;
+  }
+
+  .user-info {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .action-buttons {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .pagination-container {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+
+  .page-numbers {
     flex-wrap: wrap;
     justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .usuarios-table th,
+  .usuarios-table td {
+    padding: 10px 8px;
+  }
+
+  .btn-action {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-container {
+  background: white;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { 
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 25px 30px;
+  border-bottom: 2px solid #f8f9fa;
+  background: #FF671F;
+  color: white;
+  border-radius: 20px 20px 0 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.btn-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+.modal-form {
+  padding: 30px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #5B3427;
+  font-size: 0.9rem;
+}
+
+.form-input, .form-select {
+  padding: 12px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.form-input:focus, .form-select:focus {
+  outline: none;
+  border-color: #FF671F;
+  box-shadow: 0 0 0 3px rgba(255, 103, 31, 0.1);
+}
+
+.form-input.error, .form-select.error {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.form-input.readonly {
+  background: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+.form-help {
+  color: #6c757d;
+  font-size: 0.8rem;
+  margin-top: 5px;
+  font-style: italic;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.btn-cancel, .btn-save {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.btn-cancel {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #545b62;
+  transform: translateY(-2px);
+}
+
+.btn-save {
+  background: #FF671F;
+  color: white;
+}
+
+.btn-save:hover:not(:disabled) {
+  background: #5B3427;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 103, 31, 0.4);
+}
+
+.btn-cancel:disabled, .btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+  .modal-container {
+    width: 95%;
+    margin: 20px;
+  }
+  
+  .modal-header {
+    padding: 20px;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.3rem;
+  }
+  
+  .modal-form {
+    padding: 20px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .btn-cancel, .btn-save {
+    width: 100%;
   }
 }
 </style>

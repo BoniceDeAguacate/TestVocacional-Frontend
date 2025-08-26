@@ -57,12 +57,19 @@ export const obtenerUsuario = async (usuarioId) => {
 }
 
 /**
- * Obtiene la lista completa de usuarios para gestión
- * @returns {Promise<Object>} - Respuesta del API con lista de usuarios
+ * Obtiene la lista completa de usuarios para gestión con paginación
+ * @param {number} page - Número de página (por defecto 1)
+ * @param {number} pageSize - Tamaño de página (por defecto 10)
+ * @returns {Promise<Object>} - Respuesta del API con lista de usuarios y metadatos de paginación
  */
-export const obtenerTodosLosUsuarios = async () => {
+export const obtenerTodosLosUsuarios = async (page = 1, pageSize = 10) => {
   try {
-    const response = await api.get('/admin/users')
+    const response = await api.get('/admin/users', {
+      params: {
+        page,
+        pageSize
+      }
+    })
 
     return {
       success: true,
@@ -158,4 +165,85 @@ export const obtenerEstadoTest = (usuario) => {
   }
   
   return 'parcial'
+}
+
+/**
+ * Actualiza un usuario específico
+ * @param {number} id - ID del usuario a actualizar
+ * @param {Object} datosUsuario - Datos del usuario a actualizar
+ * @param {string} datosUsuario.email - Email del usuario
+ * @param {string} datosUsuario.password - Password del usuario (opcional)
+ * @param {string} datosUsuario.nombre - Nombre del usuario
+ * @param {string} datosUsuario.apellidos - Apellidos del usuario
+ * @param {string} datosUsuario.role - Rol del usuario
+ * @returns {Promise<Object>} - Respuesta del API con datos actualizados
+ */
+export const actualizarUsuario = async (id, datosUsuario) => {
+  try {
+    const response = await api.put(`/admin/users/${id}`, datosUsuario)
+
+    return {
+      success: true,
+      data: response.data,
+      message: 'Usuario actualizado exitosamente'
+    }
+  } catch (error) {
+    console.error('Error al actualizar usuario:', error)
+    
+    return {
+      success: false,
+      data: null,
+      message: error.response?.data?.message || 'Error al actualizar el usuario'
+    }
+  }
+}
+
+/**
+ * Elimina un usuario por ID
+ * @param {string|number} id - ID del usuario a eliminar
+ * @returns {Promise<Object>} - Respuesta del API
+ */
+export const eliminarUsuario = async (id) => {
+  try {
+    const response = await api.delete(`/admin/users/${id}`)
+
+    return {
+      success: true,
+      data: response.data,
+      message: 'Usuario eliminado exitosamente'
+    }
+  } catch (error) {
+    console.error('Error al eliminar usuario:', error)
+    
+    return {
+      success: false,
+      data: null,
+      message: error.response?.data?.message || 'Error al eliminar el usuario'
+    }
+  }
+}
+
+/**
+ * Elimina los resultados del test de un usuario por CURP
+ * @param {string} curp - CURP del usuario
+ * @returns {Promise<Object>} - Respuesta del API
+ */
+export const borrarResultadosUsuario = async (curp) => {
+  try {
+    const response = await api.delete(`/resultados/curp/${curp}`)
+
+    return {
+      success: true,
+      data: response.data,
+      message: 'Resultados eliminados exitosamente'
+    }
+  } catch (error) {
+    console.error('Error al borrar resultados:', error)
+    
+    return {
+      success: false,
+      data: null,
+      message: error.response?.data?.message || 'Error al eliminar los resultados'
+    }
+  }
 }

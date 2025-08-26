@@ -1,9 +1,8 @@
-/* Importar fuente Nunito */
+
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
 
 /* Estilos para aplicar fuente Nunito a SweetAlert2 */
 
-/* Aplicar fuente Nunito a todos los elementos de SweetAlert2 */
 .swal2-popup {
   font-family: 'Nunito', Arial, sans-serif !important;
 }

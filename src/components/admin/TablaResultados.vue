@@ -74,21 +74,34 @@
       <!-- Materia recomendada -->
       <div class="recomendacion">
         <div class="recomendacion-header">
-          <h3>Carrera recomendada</h3>
+          <h3>Análisis de Recomendación Vocacional</h3>
         </div>
         
         <div class="materia-recomendada">
           <div v-if="materiaRecomendada.nombre === 'Sin recomendación'" class="sin-recomendacion">
             <div class="sin-recomendacion-header">
-              <i class="fas fa-question-circle"></i>
-              <h4>No podemos hacer una recomendación</h4>
+              <i class="fas fa-exclamation-triangle"></i>
+              <h4>No es posible generar una recomendación válida</h4>
             </div>
             <p class="sin-recomendacion-descripcion">
-              Para poder recomendarte una carrera, necesitamos que respondas "Sí" a al menos algunas actividades que realmente te gusten o en las que te sientas hábil.
+              El estudiante respondió "No" a todas las preguntas del test vocacional, lo que impide generar una recomendación basada en aptitudes e intereses.
             </p>
             <div class="mensaje-sugerencia">
-              <span class="icono-info"><i class="fas fa-lightbulb"></i></span>
-              <span>Intenta realizar el test nuevamente pensando en actividades que disfrutas o materias que se te facilitan.</span>
+              <span class="icono-info"><i class="fas fa-clipboard-check"></i></span>
+              <span>
+                <strong>Sugerencia:</strong> Es recomendable que el estudiante vuelva a realizar el test con mayor reflexión, 
+                considerando actividades que realmente disfrute o en las que demuestre habilidades naturales.
+              </span>
+            </div>
+            <div class="acciones-admin">
+              <div class="accion-item">
+                <i class="fas fa-trash-alt"></i>
+                <span>Eliminar las respuestas del test</span>
+              </div>
+              <div class="accion-item">
+                <i class="fas fa-user-edit"></i>
+                <span>Solicitar al aspirante que repita el test con más atención</span>
+              </div>
             </div>
           </div>
           
@@ -100,14 +113,15 @@
           </div>
           
           <p v-if="materiaRecomendada.nombre !== 'Sin recomendación' && materiaRecomendada.puntuacion > 0" class="descripcion">
-            Basado en tu mayor puntuación combinada de aptitud e interés{{ hayEmpateEnRecomendacion ? ' (en caso de empate, se ordenan alfabéticamente)' : '' }}
+            Recomendación basada en la mayor puntuación combinada de aptitud e interés del estudiante{{ hayEmpateEnRecomendacion ? ' (en caso de empate, se ordenan alfabéticamente)' : '' }}
           </p>
           <p v-else-if="materiaRecomendada.nombre !== 'Sin recomendación'" class="sin-preferencias">
-            No se encontraron preferencias marcadas. Recomendamos realizar el test nuevamente.
+            El estudiante no mostró preferencias claras. Se sugiere orientación adicional.
           </p>
           
           <!-- Lista de carreras específicas -->
           <div v-if="materiaRecomendada.nombre !== 'Sin recomendación' && materiaRecomendada.puntuacion > 0" class="carreras-lista">
+            <h5>Carreras recomendadas en esta área:</h5>
             <div class="carreras-grid">
               <div 
                 v-for="carrera in formatearCarrerasRecomendadas(materiaRecomendada.nombre)" 
@@ -121,7 +135,7 @@
           
           <div v-if="materiaRecomendada.nombre !== 'Sin recomendación' && materiaRecomendada.puntuacion === 0" class="mensaje-reintento">
             <span class="icono-info"><i class="fas fa-lightbulb"></i></span>
-            <span>Responde "Sí" a las actividades que realmente te gustan o en las que te sientes hábil.</span>
+            <span>El estudiante necesita orientación para identificar sus intereses y aptitudes reales.</span>
           </div>
         </div>
       </div>
@@ -132,18 +146,15 @@
       <div class="empty-icon"><i class="fas fa-clipboard-list"></i></div>
       <h3>{{ obtenerTituloEmptyState }}</h3>
       <p>{{ obtenerDescripcionEmptyState }}</p>
-      <router-link v-if="!esAdmin" to="/aspirante/test" class="btn-primary">
-        Realizar Test Vocacional
-      </router-link>
     </div>
   </div>
 </template>
 
 <script>
-import { obtenerResultadosTest, obtenerCurpUsuario } from '../../services/aspirante/aspiranteService';
+import { obtenerResultadosTest } from '../../services/aspirante/aspiranteService';
 
 export default {
-  name: 'TablaResultados',
+  name: 'TablaResultadosAdmin',
   props: {
     usuarioId: {
       type: [String, Number],
@@ -152,10 +163,6 @@ export default {
     usuarioCurp: {
       type: String,
       default: null
-    },
-    esAdmin: {
-      type: Boolean,
-      default: false
     }
   },
   data() {
@@ -285,24 +292,16 @@ export default {
     
     obtenerTituloEmptyState() {
       if (this.usuarioInfo && this.usuarioInfo.respuestas_registradas === 0) {
-        // Respuesta específica del backend: no hay respuestas registradas
-        return this.esAdmin ? 
-          `${this.usuarioInfo.usuario.nombre} no ha completado el test` : 
-          'Aún no has completado el test vocacional';
+        return `${this.usuarioInfo.usuario.nombre} no ha completado el test`;
       }
-      // Caso general: no hay datos
-      return this.esAdmin ? 'Este usuario aún no ha completado el test' : 'No hay resultados disponibles';
+      return 'Este usuario aún no ha completado el test';
     },
     
     obtenerDescripcionEmptyState() {
       if (this.usuarioInfo && this.usuarioInfo.respuestas_registradas === 0) {
-        // Respuesta específica del backend: no hay respuestas registradas
-        return this.esAdmin ? 
-          'El usuario debe completar el test vocacional para ver sus resultados y recomendaciones de carrera.' : 
-          'Completa nuestro test vocacional para descubrir qué carreras se adaptan mejor a tus intereses y aptitudes.';
+        return 'El usuario debe completar el test vocacional para ver sus resultados y recomendaciones de carrera.';
       }
-      // Caso general
-      return this.esAdmin ? 'El usuario debe completar el test para ver sus resultados aquí.' : 'Aún no has completado el test vocacional';
+      return 'El usuario debe completar el test para ver sus resultados aquí.';
     }
   },
   async mounted() {
@@ -314,22 +313,15 @@ export default {
       this.error = null;
       
       try {
-        let curp;
+        let curp = this.usuarioCurp;
         
-        if (this.esAdmin && this.usuarioCurp) {
-          // Si es admin viendo resultados de otro usuario, usar el CURP pasado como prop
-          curp = this.usuarioCurp;
-        } else if (this.esAdmin && this.usuarioId) {
+        if (!curp && this.usuarioId) {
           // Fallback: Si es admin pero solo tiene usuarioId, simular CURP
-          // TODO: En el futuro, esto debería obtener el CURP real del backend
           curp = `CURP${this.usuarioId}`;
-        } else {
-          // Si es un aspirante viendo sus propios resultados
-          curp = obtenerCurpUsuario();
-          
-          if (!curp) {
-            throw new Error('No se encontró la CURP del usuario. Por favor, inicia sesión nuevamente.');
-          }
+        }
+        
+        if (!curp) {
+          throw new Error('No se proporcionó CURP o ID de usuario válido.');
         }
         
         const response = await obtenerResultadosTest(curp);
@@ -622,10 +614,8 @@ export default {
 
 .materia-icon {
   padding: 10px;
-  
   border-radius: 6px;
   color: #FF671F;
-  
 }
 
 .materia-icon i {
@@ -796,12 +786,12 @@ export default {
   font-size: 1rem;
 }
 
-/* Sin recomendación */
+/* Sin recomendación - Versión Admin */
 .sin-recomendacion {
-  text-align: center;
-  padding: 30px 20px;
-  background: #fff9f5;
-  border: 2px solid #ffe8d6;
+  text-align: left;
+  padding: 30px;
+  background: #fff5f5;
+  border: 2px solid #fed7d7;
   border-radius: 12px;
   margin-bottom: 20px;
 }
@@ -809,54 +799,81 @@ export default {
 .sin-recomendacion-header {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 12px;
   margin-bottom: 16px;
 }
 
 .sin-recomendacion-header i {
-  font-size: 2rem;
-  color: #f39c12;
+  font-size: 1.5rem;
+  color: #e53e3e;
 }
 
 .sin-recomendacion h4 {
-  color: #d68910;
-  font-size: 1.3rem;
+  color: #c53030;
+  font-size: 1.2rem;
   font-weight: 600;
   margin: 0;
 }
 
 .sin-recomendacion-descripcion {
-  color: #85652d;
+  color: #742a2a;
   font-size: 1rem;
   line-height: 1.5;
   margin-bottom: 20px;
 }
 
 .mensaje-sugerencia {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
   background: #fff;
   padding: 16px;
   border-radius: 8px;
-  border: 1px solid #f39c12;
-  color: #d68910;
+  border: 1px solid #e53e3e;
+  color: #742a2a;
   font-size: 0.9rem;
   line-height: 1.4;
-  max-width: 500px;
-  margin: 0 auto;
+  margin-bottom: 20px;
 }
 
 .mensaje-sugerencia .icono-info {
-  flex-shrink: 0;
-  color: #f39c12;
+  color: #e53e3e;
+  margin-right: 8px;
+}
+
+.acciones-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.accion-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+  border-left: 4px solid #e53e3e;
+  color: #742a2a;
+  font-size: 0.9rem;
+}
+
+.accion-item i {
+  color: #e53e3e;
+  font-size: 1rem;
+  width: 16px;
+  text-align: center;
 }
 
 /* Estilos para las carreras recomendadas */
 .carreras-lista {
   margin-top: 20px;
+}
+
+.carreras-lista h5 {
+  color: #5B3427;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 15px;
 }
 
 .carreras-grid {
@@ -902,6 +919,15 @@ export default {
   .puntuacion-badge {
     align-self: flex-start;
   }
+  
+  .acciones-admin {
+    gap: 8px;
+  }
+  
+  .accion-item {
+    padding: 10px;
+    font-size: 0.85rem;
+  }
 }
 
 /* Responsive adicional */
@@ -912,6 +938,10 @@ export default {
   
   .materia-recomendada h4 {
     font-size: 1.25rem;
+  }
+  
+  .sin-recomendacion {
+    padding: 20px;
   }
 }
 
@@ -929,28 +959,6 @@ export default {
 
 .empty-icon i {
   font-size: 3rem;
-}
-
-.btn-primary {
-  display: inline-block;
-  background: #FF671F;
-  color: white;
-  text-decoration: none;
-  padding: 15px 30px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 16px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(255, 103, 31, 0.2);
-  margin-top: 20px;
-}
-
-.btn-primary:hover {
-  background: #5B3427;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(91, 52, 39, 0.3);
-  text-decoration: none;
-  color: white;
 }
 
 /* Responsive */

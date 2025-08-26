@@ -38,11 +38,11 @@
 
     <div class="card-footer">
       <div class="acciones">
-        <button class="btn-accion btn-ver" @click="verDetalles">
-          Ver Detalles
-        </button>
         <button class="btn-accion btn-resultados" @click="verResultados" :disabled="resumen.total_respuestas === 0">
           Ver Resultados
+        </button>
+        <button class="btn-accion btn-borrar" @click="borrarResultados" :disabled="resumen.total_respuestas === 0">
+          Borrar Resultados
         </button>
       </div>
     </div>
@@ -64,7 +64,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['ver-detalles', 'ver-resultados'])
+const emit = defineEmits(['ver-detalles', 'ver-resultados', 'borrar-resultados'])
 
 // Computed properties
 const nombreCarrera = computed(() => formatearNombreCarrera(props.usuario.carrera_recomendada))
@@ -91,6 +91,12 @@ const verDetalles = () => {
 const verResultados = () => {
   if (props.resumen.total_respuestas > 0) {
     emit('ver-resultados', props.usuario)
+  }
+}
+
+const borrarResultados = () => {
+  if (props.resumen.total_respuestas > 0) {
+    emit('borrar-resultados', props.usuario)
   }
 }
 </script>
@@ -282,25 +288,30 @@ const verResultados = () => {
   font-family: 'Nunito', inherit;
 }
 
-.btn-ver {
+.btn-resultados {
   background: #FF671F;
   color: white;
 }
 
-.btn-ver:hover {
+.btn-resultados:hover:not(:disabled) {
   background: #e55a1a;
 }
 
-.btn-resultados {
+.btn-resultados:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.btn-borrar {
   background: #5B3427;
   color: white;
 }
 
-.btn-resultados:hover:not(:disabled) {
+.btn-borrar:hover:not(:disabled) {
   background: #4a2a1f;
 }
 
-.btn-resultados:disabled {
+.btn-borrar:disabled {
   background: #bdc3c7;
   cursor: not-allowed;
 }
