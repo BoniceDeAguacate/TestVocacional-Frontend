@@ -22,22 +22,6 @@
           Usuarios
         </router-link>
         
-        <router-link 
-          to="/admin/reportes" 
-          class="nav-btn"
-          :class="{ active: $route.path.includes('/admin/reportes') }"
-        >
-          Reportes
-        </router-link>
-        
-        <router-link 
-          to="/admin/configuracion" 
-          class="nav-btn"
-          :class="{ active: $route.path.includes('/admin/configuracion') }"
-        >
-          Configuración
-        </router-link>
-        
         <button @click="cerrarSesion" class="nav-btn logout">
           Cerrar Sesión
         </button>

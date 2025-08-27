@@ -368,12 +368,12 @@ export default {
     formatearNombreMateria(nombre) {
       const nombres = {
         'salud': 'Ciencias de la Salud',
-        'ingenieria': 'Ingeniería',
-        'humanistica': 'Ciencias Humanísticas',
-        'exactas': 'Ciencias Exactas',
-        'economica': 'Ciencias Económicas',
+        'ingenieria': 'Ingenierías, Carreras Técnicas y Computación',
+        'humanistica': 'Ciencias Humanísticas, Ciencias Jurídicas y Ciencias Sociales',
+        'exactas': 'Ciencias Agrarias de la Naturaleza, Zoológicas y Biológicas',
+        'economica': 'Administrativas, Contables y Económicas',
         'defensa': 'Defensa y Seguridad',
-        'artistica': 'Artes y Humanidades'
+        'artistica': 'Artísticas'
       };
       return nombres[nombre] || nombre.charAt(0).toUpperCase() + nombre.slice(1);
     },

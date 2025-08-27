@@ -9,7 +9,7 @@
           <p class="page-subtitle">Administra todos los usuarios registrados en el sistema</p>
         </div>
         
-        <!-- Columna 2: Barra de búsqueda -->
+        <!-- Columna 2: Barra de búsqueda y botón exportar -->
         <div class="search-column">
           <div class="search-container">
             <div class="search-input-wrapper">
@@ -29,6 +29,14 @@
                 <i class="fas fa-times"></i>
               </button>
             </div>
+            <button 
+              @click="exportarExcel" 
+              :disabled="exportando"
+              class="btn-export"
+            >
+              <i class="fas fa-file-excel"></i>
+              {{ exportando ? 'Exportando...' : 'Exportar Excel' }}
+            </button>
           </div>
         </div>
       </div>
@@ -75,7 +83,6 @@
                   </div>
                   <div class="user-details">
                     <div class="user-name">{{ usuario.nombre }} {{ usuario.apellidos }}</div>
-                    <div class="user-id">ID: {{ usuario.id }}</div>
                   </div>
                 </div>
               </td>
@@ -206,7 +213,7 @@
           </div>
 
           <div class="form-row">
-            <div class="form-group">
+            <div class="form-group full-width">
               <label for="email">Email *</label>
               <input
                 id="email"
@@ -220,27 +227,6 @@
               <span v-if="erroresValidacion.email" class="error-message">
                 {{ erroresValidacion.email }}
               </span>
-            </div>
-            
-            <div class="form-group">
-              <label for="role">Rol *</label>
-              <select
-                id="role"
-                v-model="usuarioEdicion.role"
-                class="form-select"
-                :class="{ 'error': erroresValidacion.role }"
-                required
-              >
-                <option value="">Selecciona un rol</option>
-                <option value="aspirante">Aspirante</option>
-                <option value="admin">Administrador</option>
-              </select>
-              <span v-if="erroresValidacion.role" class="error-message">
-                {{ erroresValidacion.role }}
-              </span>
-              <small v-if="usuarioEdicion.role" class="form-help">
-                Rol actual: {{ usuarioEdicion.role === 'admin' ? 'Administrador' : 'Aspirante' }}
-              </small>
             </div>
           </div>
 
@@ -307,7 +293,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { obtenerTodosLosUsuarios, actualizarUsuario, eliminarUsuario as eliminarUsuarioApi } from '@/services/admin/adminService'
+import { obtenerTodosLosUsuarios, actualizarUsuario, eliminarUsuario as eliminarUsuarioApi, exportarReporteExcel } from '@/services/admin/adminService'
 import { useAlert } from '@/composables/useAlert'
 
 const router = useRouter()
@@ -379,8 +365,7 @@ const formularioValido = computed(() => {
   // Validaciones básicas requeridas
   const camposRequeridosValidos = usuarioEdicion.value.nombre.trim() &&
          usuarioEdicion.value.apellidos.trim() &&
-         usuarioEdicion.value.email.trim() &&
-         usuarioEdicion.value.role
+         usuarioEdicion.value.email.trim()
   
   // No debe haber errores de validación
   const sinErrores = Object.keys(erroresValidacion.value).length === 0
@@ -428,7 +413,6 @@ const camposInteractuados = ref({
   nombre: false,
   apellidos: false,
   email: false,
-  role: false,
   password: false
 })
 
@@ -484,22 +468,6 @@ watch(() => usuarioEdicion.value.email, (nuevoEmail, valorAnterior) => {
       erroresValidacion.value.email = 'El formato del email no es válido'
     } else {
       delete erroresValidacion.value.email
-    }
-  }
-})
-
-watch(() => usuarioEdicion.value.role, (nuevoRole, valorAnterior) => {
-  // Marcar como interactuado si el usuario ha cambiado el valor
-  if (valorAnterior !== undefined) {
-    camposInteractuados.value.role = true
-  }
-  
-  // Validar solo si el campo ha sido interactuado
-  if (camposInteractuados.value.role) {
-    if (!nuevoRole) {
-      erroresValidacion.value.role = 'El rol es requerido'
-    } else {
-      delete erroresValidacion.value.role
     }
   }
 })
@@ -673,7 +641,6 @@ const cerrarModal = () => {
     nombre: false,
     apellidos: false,
     email: false,
-    role: false,
     password: false
   }
 }
@@ -703,11 +670,6 @@ const validarFormulario = () => {
     errores.email = 'El formato del email no es válido'
   }
   
-  // Validar rol
-  if (!usuarioEdicion.value.role) {
-    errores.role = 'El rol es requerido'
-  }
-  
   // Validar contraseña (solo si se proporcionó una)
   if (usuarioEdicion.value.password && usuarioEdicion.value.password.trim() !== '') {
     if (usuarioEdicion.value.password.length < 6) {
@@ -731,8 +693,7 @@ const guardarUsuario = async () => {
     const datosActualizacion = {
       nombre: usuarioEdicion.value.nombre.trim(),
       apellidos: usuarioEdicion.value.apellidos.trim(),
-      email: usuarioEdicion.value.email.trim(),
-      role: usuarioEdicion.value.role
+      email: usuarioEdicion.value.email.trim()
     }
     
     // Solo incluir password si se proporcionó
@@ -763,6 +724,224 @@ const guardarUsuario = async () => {
     await showError('Error inesperado al guardar el usuario', 'Error del sistema')
   } finally {
     guardandoUsuario.value = false
+  }
+}
+
+const exportarExcel = async () => {
+  exportando.value = true
+  
+  try {
+    const respuesta = await exportarReporteExcel()
+    
+    if (respuesta.success) {
+      // Importar la librería xlsx dinámicamente
+      const XLSX = await import('xlsx')
+      
+      // Procesar los datos CSV
+      const csvData = respuesta.data
+      const lines = csvData.trim().split('\n')
+      const headers = lines[0].split(',').map(h => h.replace(/"/g, ''))
+      
+      // Convertir CSV a array de objetos
+      const data = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.replace(/"/g, ''))
+        const row = {}
+        headers.forEach((header, index) => {
+          row[header] = values[index] || ''
+        })
+        return row
+      })
+      
+      // Crear workbook
+      const workbook = XLSX.utils.book_new()
+      
+      // Definir mapeo y orden de columnas
+      const columnDefinitions = [
+        { key: 'id', title: 'ID', width: 8, type: 'number' },
+        { key: 'curp', title: 'CURP', width: 22, type: 'text' },
+        { key: 'nombre', title: 'Nombre', width: 18, type: 'text' },
+        { key: 'apellidos', title: 'Apellidos', width: 18, type: 'text' },
+        { key: 'email', title: 'Correo Electrónico', width: 30, type: 'text' },
+        { key: 'total_respuestas', title: 'Total Respuestas', width: 18, type: 'number' },
+        { key: 'carrera_recomendada', title: 'Carrera Recomendada', width: 25, type: 'text' }
+      ]
+      
+      // Formatear datos según las definiciones de columnas
+      const processedData = data.map(row => {
+        const newRow = {}
+        columnDefinitions.forEach(col => {
+          let value = row[col.key] || ''
+          
+          // Formatear según el tipo de columna
+          if (col.key === 'carrera_recomendada') {
+            const carreraNames = {
+              'salud': 'Ciencias de la Salud',
+              'ingenieria': 'Ingenierías, Carreras Técnicas y Computación',
+              'humanistica': 'Ciencias Humanísticas, Ciencias Jurídicas y Ciencias Sociales',
+              'exactas': 'Ciencias Agrarias de la Naturaleza, Zoológicas y Biológicas',
+              'economica': 'Administrativas, Contables y Económicas',
+              'defensa': 'Defensa y Seguridad',
+              'artistica': 'Artísticas'
+            }
+            value = carreraNames[value] || value || 'Sin asignar'
+          }
+          
+          if (col.type === 'number') {
+            value = parseInt(value) || 0
+          }
+          
+          newRow[col.title] = value
+        })
+        return newRow
+      })
+      
+      // Crear worksheet vacío para control manual
+      const worksheet = {}
+      
+      // Agregar título principal
+      worksheet['A1'] = { 
+        v: 'REPORTE TEST VOCACIONAL', 
+        t: 's',
+        s: {
+          font: { bold: true, sz: 16 },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        }
+      }
+      
+      // Metadata
+      worksheet['A3'] = { 
+        v: `Fecha de generación: ${new Date().toLocaleDateString('es-MX')}`, 
+        t: 's',
+        s: {
+          font: { bold: true, sz: 12 },
+          alignment: { horizontal: 'left', vertical: 'center' }
+        }
+      }
+      
+      worksheet['A4'] = { 
+        v: `Total de registros: ${data.length}`, 
+        t: 's',
+        s: {
+          font: { bold: true, sz: 12 },
+          alignment: { horizontal: 'left', vertical: 'center' }
+        }
+      }
+      
+      // Headers de columnas (fila 6)
+      const headerRow = 6
+      columnDefinitions.forEach((col, index) => {
+        const cellAddress = XLSX.utils.encode_cell({ r: headerRow - 1, c: index })
+        worksheet[cellAddress] = {
+          v: col.title,
+          t: 's',
+          s: {
+            font: { bold: true, sz: 12 },
+            alignment: { horizontal: 'center', vertical: 'center' }
+          }
+        }
+      })
+      
+      // Datos
+      processedData.forEach((row, rowIndex) => {
+        const dataRowIndex = headerRow + rowIndex // Empezar después del header
+        
+        columnDefinitions.forEach((col, colIndex) => {
+          const cellAddress = XLSX.utils.encode_cell({ r: dataRowIndex, c: colIndex })
+          const cellValue = row[col.title]
+          
+          worksheet[cellAddress] = {
+            v: cellValue,
+            t: col.type === 'number' ? 'n' : 's',
+            s: {
+              font: { sz: 11 },
+              alignment: { 
+                horizontal: col.type === 'number' ? 'center' : 'left', 
+                vertical: 'center',
+                wrapText: col.key === 'carrera_recomendada'
+              }
+            }
+          }
+        })
+      })
+      
+      // Definir rango del worksheet
+      const lastRow = headerRow + processedData.length
+      const lastCol = columnDefinitions.length - 1
+      worksheet['!ref'] = `A1:${XLSX.utils.encode_cell({ r: lastRow, c: lastCol })}`
+      
+      // Configurar anchos de columna
+      worksheet['!cols'] = columnDefinitions.map(col => ({ wch: col.width }))
+      
+      // Configurar merge cells
+      worksheet['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } }, // Título principal
+        { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } }, // Fecha
+        { s: { r: 3, c: 0 }, e: { r: 3, c: 3 } }  // Total registros
+      ]
+      
+      // Configurar AutoFilter para la tabla de datos
+      // El rango de la tabla incluye headers y datos (desde fila 6 hasta la última fila)
+      const tableStartRow = headerRow - 1 // Fila 5 (0-indexed)
+      const tableEndRow = lastRow // Última fila con datos
+      worksheet['!autofilter'] = {
+        ref: `A${tableStartRow + 1}:${XLSX.utils.encode_cell({ r: tableEndRow, c: lastCol })}`
+      }
+      
+      // Configurar rango como tabla de Excel
+      const tableName = 'TablaReporteTestVocacional'
+      const tableRef = `A${tableStartRow + 1}:${XLSX.utils.encode_cell({ r: tableEndRow, c: lastCol })}`
+      
+      // Agregar definición de tabla (esto mejora la funcionalidad en Excel)
+      if (!worksheet['!tables']) {
+        worksheet['!tables'] = []
+      }
+      
+      worksheet['!tables'].push({
+        name: tableName,
+        ref: tableRef,
+        headerRow: true,
+        style: {
+          theme: 'TableStyleLight1', // Estilo de tabla simple sin colores
+          showFirstColumn: false,
+          showLastColumn: false,
+          showRowStripes: false, // Sin filas alternadas
+          showColumnStripes: false
+        }
+      })
+      
+      // Configurar filtros automáticos mejorados
+      worksheet['!autofilter'] = { ref: tableRef }
+      
+      // Freeze panes para mantener headers visibles
+      worksheet['!freeze'] = { 
+        xSplit: 0, 
+        ySplit: headerRow, // Congelar hasta la fila de headers
+        topLeftCell: `A${headerRow + 1}` 
+      }
+      
+      // Agregar worksheet al workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte Test Vocacional')
+      
+      // Generar archivo con fecha y hora
+      const fecha = new Date().toISOString().split('T')[0]
+      const hora = new Date().toTimeString().slice(0, 5).replace(':', '')
+      const fileName = `reporteTestVocacional_${fecha}_${hora}.xlsx`
+      
+      // Descargar archivo
+      XLSX.writeFile(workbook, fileName)
+      
+      await showSuccess(
+        `Reporte exportado exitosamente`, 
+        'Exportación completada'
+      )
+    } else {
+      await showError(respuesta.message, 'Error al exportar')
+    }
+  } catch (error) {
+    console.error('Error al exportar:', error)
+    await showError('Error inesperado al exportar el reporte', 'Error del sistema')
+  } finally {
+    exportando.value = false
   }
 }
 
@@ -889,6 +1068,9 @@ onMounted(() => {
   width: 100%;
   max-width: 400px;
   min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .search-column .search-input-wrapper {
@@ -918,11 +1100,22 @@ onMounted(() => {
 .btn-export {
   background: #28a745;
   color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  min-width: 150px;
 }
 
 .btn-export:hover:not(:disabled) {
   background: #218838;
   transform: translateY(-2px);
+}
+
+.btn-export:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-create {

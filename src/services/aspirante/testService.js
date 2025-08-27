@@ -89,12 +89,12 @@ export const obtenerOrdenMaterias = () => {
 // Obtener nombres legibles de las materias
 export const obtenerNombresMaterias = () => {
   return {
-    economica: 'Administrativas, Contables y Económicas',
-    humanistica: 'Humanísticas, Ciencias Jurídicas y Ciencias Sociales',
-    artistica: 'Artísticas',
     salud: 'Ciencias de la Salud',
     ingenieria: 'Ingenierías, Carreras Técnicas y Computación',
+    humanistica: 'Ciencias Humanísticas, Ciencias Jurídicas y Ciencias Sociales',
+    exactas: 'Ciencias Agrarias de la Naturaleza, Zoológicas y Biológicas',
+    economica: 'Administrativas, Contables y Económicas',
     defensa: 'Defensa y Seguridad',
-    exactas: 'Ciencias Agrarias de la Naturaleza, Zoológicas y Biológicas'
+    artistica: 'Artísticas'
   }
 }

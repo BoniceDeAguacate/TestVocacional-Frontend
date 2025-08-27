@@ -97,10 +97,10 @@ export const formatearNombreCarrera = (carrera) => {
   
   const nombres = {
     'salud': 'Ciencias de la Salud',
-    'ingenieria': 'Ingeniería',
-    'humanistica': 'Ciencias Humanísticas',
-    'exactas': 'Ciencias Exactas',
-    'economica': 'Ciencias Económicas',
+    'ingenieria': 'Ingenierías, Carreras Técnicas y Computación',
+    'humanistica': 'Ciencias Humanísticas, Ciencias Jurídicas y Ciencias Sociales',
+    'exactas': 'Ciencias Agrarias de la Naturaleza, Zoológicas y Biológicas',
+    'economica': 'Administrativas, Contables y Económicas',
     'defensa': 'Defensa y Seguridad',
     'artistica': 'Artísticas'
   }
@@ -244,6 +244,32 @@ export const borrarResultadosUsuario = async (curp) => {
       success: false,
       data: null,
       message: error.response?.data?.message || 'Error al eliminar los resultados'
+    }
+  }
+}
+
+/**
+ * Exporta los datos de usuarios a Excel
+ * @returns {Promise<Object>} - Datos para generar Excel
+ */
+export const exportarReporteExcel = async () => {
+  try {
+    const response = await api.get('/admin/reports/export', {
+      responseType: 'text' // Recibimos como texto para procesar el CSV
+    })
+
+    return {
+      success: true,
+      data: response.data,
+      message: 'Datos obtenidos exitosamente'
+    }
+  } catch (error) {
+    console.error('Error al obtener datos para reporte:', error)
+    
+    return {
+      success: false,
+      data: null,
+      message: error.response?.data?.message || 'Error al obtener los datos del reporte'
     }
   }
 }

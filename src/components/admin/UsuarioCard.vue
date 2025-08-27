@@ -1,13 +1,10 @@
 <template>
-  <div class="usuario-card" :class="colorCarrera">
+<div class="usuario-card" :class="colorCarrera">
     <div class="card-header">
       <div class="usuario-info">
         <h3 class="usuario-nombre">{{ usuario.nombre }} {{ usuario.apellidos }}</h3>
         <p class="usuario-email">{{ usuario.email }}</p>
         <p class="usuario-curp">CURP: {{ usuario.curp }}</p>
-      </div>
-      <div class="usuario-id">
-        <span class="id-numero">#{{ usuario.id }}</span>
       </div>
     </div>
 
@@ -182,20 +179,6 @@ const borrarResultados = () => {
   font-family: 'Courier New', monospace;
 }
 
-.usuario-id {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f8f9fa;
-  padding: 8px 12px;
-  border-radius: 8px;
-}
-
-.id-numero {
-  font-size: 1.1rem;
-  color: #5B3427;
-  font-weight: 700;
-}
 
 /* Body de la tarjeta */
 .estadisticas {

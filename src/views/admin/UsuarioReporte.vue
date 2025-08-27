@@ -127,7 +127,7 @@ const cargarReporte = async () => {
       }
       
       totalRespuestas.value = 85
-      carreraRecomendada.value = 'Artes y Humanidades'
+      carreraRecomendada.value = 'Artísticas'
       fechaCompletado.value = '2025-08-21'
     }
 
@@ -144,7 +144,7 @@ const cargarReporte = async () => {
     }
     
     totalRespuestas.value = 85
-    carreraRecomendada.value = 'Artes y Humanidades'
+    carreraRecomendada.value = 'Artísticas'
     fechaCompletado.value = '2025-08-21'
     
   } finally {

@@ -82,16 +82,6 @@ const router = createRouter({
           component: () => import('../views/admin/ResultadosUsuario.vue'),
           props: true
         },
-        {
-          path: 'reportes',
-          name: 'admin-reportes',
-          component: () => import('../views/admin/Reportes.vue'),
-        },
-        {
-          path: 'configuracion',
-          name: 'admin-configuracion',
-          component: () => import('../views/admin/Configuracion.vue'),
-        }
       ]
     },
     // Ruta de compatibilidad (se puede eliminar después)
