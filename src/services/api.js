@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Debug: verificar qué URL se está usando
-const apiUrl = import.meta.env.VITE_API_URL || 'https://ingaguacate.site:3000/api';
+iconst apiUrl = import.meta.env.VITE_API_URL || 'https://ingaguacate.site/api';
 
 const api = axios.create({
   baseURL: apiUrl,
