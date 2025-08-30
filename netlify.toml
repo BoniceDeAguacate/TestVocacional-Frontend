@@ -1,0 +1,23 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Función para hacer proxy a la API
+[functions]
+  directory = "netlify/functions"
+
+# Redirect para API a través de la función
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api-proxy?path=:splat"
+  status = 200
+  force = true
+
+# Redirect para SPA (Single Page Application)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
