@@ -44,13 +44,13 @@
         
         <select v-model="filtros.carrera" class="filter-select">
           <option value="">Todas las carreras</option>
-          <option value="salud">Área de Salud</option>
-          <option value="ingenieria">Ingeniería y Tecnología</option>
-          <option value="humanistica">Humanística y Educación</option>
-          <option value="exactas">Ciencias Exactas</option>
-          <option value="economica">Económico Administrativa</option>
+          <option value="salud">Ciencias de la Salud</option>
+          <option value="ingenieria">Ingenierías, Carreras Técnicas y Computación</option>
+          <option value="humanistica">Ciencias Humanísticas, Ciencias Jurídicas y Ciencias Sociales</option>
+          <option value="exactas">Ciencias Agrarias de la Naturaleza, Zoológicas y Biológicas</option>
+          <option value="economica">Administrativas, Contables y Económicas</option>
           <option value="defensa">Defensa y Seguridad</option>
-          <option value="artistica">Artística</option>
+          <option value="artistica">Artísticas</option>
         </select>
       </div>
     </div>
