@@ -2,7 +2,6 @@ import api from './api';
 
 export async function login(curp, password) {
   try {
-    console.log('🔐 Intentando login a:', api.defaults.baseURL);
     const response = await api.post('/users/login', { curp, password });
     const { token, user, message } = response.data;
     if (token && user) {
