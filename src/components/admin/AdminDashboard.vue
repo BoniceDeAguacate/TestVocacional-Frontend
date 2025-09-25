@@ -52,6 +52,13 @@
           <option value="defensa">Defensa y Seguridad</option>
           <option value="artistica">Artísticas</option>
         </select>
+        
+        <select v-model="filtros.anio" class="filter-select">
+          <option value="">Todos los años</option>
+          <option v-for="anio in aniosDisponibles" :key="anio" :value="anio">
+            {{ anio }}
+          </option>
+        </select>
       </div>
     </div>
 
@@ -75,7 +82,7 @@
       <div v-if="usuariosFiltrados.length === 0" class="empty-state">
         <h3 class="empty-title">No se encontraron usuarios</h3>
         <p class="empty-message">
-          {{ filtros.busqueda || filtros.estado || filtros.carrera 
+          {{ filtros.busqueda || filtros.estado || filtros.carrera || filtros.anio
              ? 'Intenta ajustar los filtros de búsqueda' 
              : 'Aún no hay usuarios registrados en el sistema' }}
         </p>
@@ -143,7 +150,8 @@ const totalUsuarios = ref(0)
 const filtros = ref({
   busqueda: '',
   estado: '',
-  carrera: ''
+  carrera: '',
+  anio: ''
 })
 
 // Computed properties
@@ -155,6 +163,18 @@ const usuariosCompletados = computed(() => {
 
 const usuariosPendientes = computed(() => {
   return usuarios.value.filter(u => u.resumen.total_respuestas === 0).length
+})
+
+// Computed para obtener los años disponibles de los usuarios registrados
+const aniosDisponibles = computed(() => {
+  const anios = new Set()
+  usuarios.value.forEach(usuario => {
+    if (usuario.createdAt) {
+      const anio = new Date(usuario.createdAt).getFullYear()
+      anios.add(anio)
+    }
+  })
+  return Array.from(anios).sort((a, b) => b - a) // Ordenar de más reciente a más antiguo
 })
 
 const usuariosFiltrados = computed(() => {
@@ -187,6 +207,15 @@ const usuariosFiltrados = computed(() => {
     })
   }
 
+  // Filtro por año de creación
+  if (filtros.value.anio) {
+    resultado = resultado.filter(usuario => {
+      if (!usuario.createdAt) return false
+      const anioUsuario = new Date(usuario.createdAt).getFullYear()
+      return anioUsuario === filtros.value.anio // Comparar números directamente
+    })
+  }
+
   return resultado
 })
 
@@ -215,6 +244,7 @@ const cargarDashboard = async (pagina = 1) => {
         nombre: item.usuario.nombre,
         apellidos: item.usuario.apellidos,
         email: item.usuario.email,
+        createdAt: item.usuario.createdAt, // Agregar fecha de creación
         resumen: {
           total_respuestas: item.resumen.total_respuestas
         },
@@ -297,7 +327,7 @@ const borrarResultadosUsuario = async (usuario) => {
 
 // Watchers para limpiar filtros cuando cambian
 watch(
-  [() => filtros.value.busqueda, () => filtros.value.estado, () => filtros.value.carrera],
+  [() => filtros.value.busqueda, () => filtros.value.estado, () => filtros.value.carrera, () => filtros.value.anio],
   () => {
     // Resetear a la primera página cuando cambian los filtros
     if (paginaActual.value !== 1) {
@@ -389,7 +419,7 @@ onMounted(() => {
 
 .search-filters {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 15px;
   align-items: center;
 }

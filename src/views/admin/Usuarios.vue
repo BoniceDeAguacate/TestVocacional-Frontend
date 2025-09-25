@@ -29,13 +29,39 @@
                 <i class="fas fa-times"></i>
               </button>
             </div>
+            
+            <!-- Filtros adicionales -->
+            <div class="additional-filters" v-if="!cargando && !error">
+              <select v-model="filtros.anio" class="filter-select" :disabled="aniosDisponibles.length === 0">
+                <option value="">Todos los años</option>
+                <option v-for="anio in aniosDisponibles" :key="anio" :value="anio">
+                  {{ anio }}
+                </option>
+              </select>
+              
+              <button 
+                @click="eliminarUsuariosPorAnio" 
+                class="btn-delete-year"
+                v-if="filtros.anio && usuariosFiltrados.length > 0"
+                :disabled="eliminandoPorAnio"
+                title="Eliminar todos los usuarios del año seleccionado"
+              >
+                <i class="fas fa-trash-alt"></i>
+                {{ eliminandoPorAnio ? 'Eliminando...' : `Eliminar ${usuariosFiltrados.length}` }}
+              </button>
+            </div>
             <button 
               @click="exportarExcel" 
               :disabled="exportando"
               class="btn-export"
             >
               <i class="fas fa-file-excel"></i>
-              {{ exportando ? 'Exportando...' : 'Exportar Excel' }}
+              {{ exportando 
+                  ? 'Exportando...' 
+                  : (filtros.anio 
+                      ? `Exportar ${filtros.anio}` 
+                      : 'Exportar Excel') 
+              }}
             </button>
           </div>
         </div>
@@ -162,9 +188,17 @@
     <!-- Empty state -->
     <div v-else class="empty-state">
       <div class="empty-icon"><i class="fas fa-users"></i></div>
-      <h3>No hay usuarios registrados</h3>
-      <p>Aún no hay usuarios en el sistema</p>
-      <button @click="mostrarModalCrear" class="btn-create">
+      <h3>No se encontraron usuarios</h3>
+      <p>
+        {{ filtros.busqueda || filtros.anio
+           ? 'Intenta ajustar los filtros de búsqueda manualmente' 
+           : 'Aún no hay usuarios registrados en el sistema' }}
+      </p>
+      <button 
+        v-if="!filtros.busqueda && !filtros.anio"
+        @click="mostrarModalCrear" 
+        class="btn-create"
+      >
         <i class="fas fa-plus"></i> Crear primer usuario
       </button>
     </div>
@@ -287,11 +321,71 @@
         </form>
       </div>
     </div>
+
+    <!-- Modal de confirmación de eliminación masiva -->
+    <div v-if="mostrarModalEliminacion" class="modal-overlay modal-overlay-delete" @click="cerrarModalEliminacion">
+      <div class="modal-container modal-delete" @click.stop>
+        <div class="modal-header modal-header-delete">
+          <h2><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación Masiva</h2>
+          <button @click="cerrarModalEliminacion" class="btn-close"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="warning-content">
+            <div class="warning-icon">
+              <i class="fas fa-trash-alt"></i>
+            </div>
+            <div class="warning-text">
+              <h3>¿Estás seguro de eliminar todos los usuarios?</h3>
+              <p>
+                Esta acción eliminará permanentemente <strong>{{ datosPendientesEliminacion.cantidad }} usuarios</strong> 
+                del año <strong>{{ datosPendientesEliminacion.anio }}</strong>.
+              </p>
+              <p class="warning-note">
+                <i class="fas fa-info-circle"></i>
+                Esta operación no se puede deshacer.
+              </p>
+            </div>
+          </div>
+          
+          <div class="countdown-section" v-if="contadorConfirmacion > 0">
+            <div class="countdown-timer">
+              <i class="fas fa-clock"></i>
+              Espera {{ contadorConfirmacion }} segundos para continuar
+            </div>
+            <div class="countdown-bar">
+              <div 
+                class="countdown-progress" 
+                :style="{ width: `${((5 - contadorConfirmacion) / 5) * 100}%` }"
+              ></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-actions">
+          <button 
+            @click="confirmarEliminacionMasiva" 
+            class="btn-confirm-delete"
+            :class="{ 'btn-confirm-disabled': contadorConfirmacion > 0 }"
+            :disabled="contadorConfirmacion > 0"
+          >
+            <i class="fas fa-trash"></i>
+            {{ contadorConfirmacion > 0 ? `Eliminar (${contadorConfirmacion}s)` : 'Eliminar' }}
+          </button>
+          <button 
+            @click="cerrarModalEliminacion" 
+            class="btn-cancel-delete"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { obtenerTodosLosUsuarios, actualizarUsuario, eliminarUsuario as eliminarUsuarioApi, exportarReporteExcel } from '@/services/admin/adminService'
 import { useAlert } from '@/composables/useAlert'
@@ -304,6 +398,17 @@ const usuarios = ref([])
 const cargando = ref(true)
 const error = ref(null)
 const exportando = ref(false)
+const eliminandoPorAnio = ref(false)
+
+// Estados para modal de confirmación de eliminación masiva
+const mostrarModalEliminacion = ref(false)
+const contadorConfirmacion = ref(5)
+const intervalID = ref(null)
+const datosPendientesEliminacion = ref({
+  usuarios: [],
+  anio: null,
+  cantidad: 0
+})
 
 // Estados del modal
 const mostrarModal = ref(false)
@@ -321,7 +426,8 @@ const erroresValidacion = ref({})
 
 // Filtros y búsqueda
 const filtros = ref({
-  busqueda: ''
+  busqueda: '',
+  anio: ''
 })
 
 // Paginación del servidor
@@ -339,19 +445,54 @@ const paginacionLocal = ref({
   totalPaginas: 1
 })
 
-// Computed properties
-const usuariosFiltrados = computed(() => {
-  if (!filtros.value.busqueda) {
-    return usuarios.value
+// Computed properties para filtros avanzados
+const aniosDisponibles = computed(() => {
+  // Solo calcular años si los datos están cargados y no hay error
+  if (cargando.value || error.value || !usuarios.value || usuarios.value.length === 0) {
+    return []
   }
   
-  const busqueda = filtros.value.busqueda.toLowerCase()
-  return usuarios.value.filter(usuario => 
-    usuario.nombre.toLowerCase().includes(busqueda) ||
-    usuario.apellidos.toLowerCase().includes(busqueda) ||
-    usuario.email.toLowerCase().includes(busqueda) ||
-    usuario.curp.toLowerCase().includes(busqueda)
-  )
+  const anios = new Set()
+  usuarios.value.forEach(usuario => {
+    if (usuario.createdAt) {
+      const anio = new Date(usuario.createdAt).getFullYear()
+      anios.add(anio)
+    }
+  })
+  return Array.from(anios).sort((a, b) => b - a) // Ordenar de más reciente a más antiguo
+})
+
+// Método auxiliar para obtener el estado del usuario
+const getEstadoUsuario = (usuario) => {
+  // Para usuarios normales, necesitamos verificar si tienen resultados
+  // Esto podría requerir información adicional del backend o asumir que todos son aspirantes
+  return 'aspirante' // Por defecto, todos son aspirantes en esta vista
+}
+
+const usuariosFiltrados = computed(() => {
+  let resultado = usuarios.value
+
+  // Filtro por búsqueda de texto
+  if (filtros.value.busqueda) {
+    const busqueda = filtros.value.busqueda.toLowerCase()
+    resultado = resultado.filter(usuario => 
+      usuario.nombre.toLowerCase().includes(busqueda) ||
+      usuario.apellidos.toLowerCase().includes(busqueda) ||
+      usuario.email.toLowerCase().includes(busqueda) ||
+      usuario.curp.toLowerCase().includes(busqueda)
+    )
+  }
+
+  // Filtro por año de creación
+  if (filtros.value.anio) {
+    resultado = resultado.filter(usuario => {
+      if (!usuario.createdAt) return false
+      const anioUsuario = new Date(usuario.createdAt).getFullYear()
+      return anioUsuario === filtros.value.anio
+    })
+  }
+
+  return resultado
 })
 
 const usuariosPaginados = computed(() => {
@@ -403,6 +544,17 @@ watch(usuariosFiltrados, (nuevosUsuarios) => {
   paginacionLocal.value.totalPaginas = Math.ceil(nuevosUsuarios.length / paginacionLocal.value.tamanioPagina)
   paginacionLocal.value.paginaActual = 1
 })
+
+// Watcher para resetear paginación cuando cambian los filtros
+watch(
+  [() => filtros.value.busqueda, () => filtros.value.anio],
+  () => {
+    // Resetear a la primera página cuando cambian los filtros
+    if (paginacionLocal.value.paginaActual !== 1) {
+      paginacionLocal.value.paginaActual = 1
+    }
+  }
+)
 
 watch(usuariosPaginados, () => {
   // Reset pagination if needed
@@ -743,7 +895,7 @@ const exportarExcel = async () => {
       const headers = lines[0].split(',').map(h => h.replace(/"/g, ''))
       
       // Convertir CSV a array de objetos
-      const data = lines.slice(1).map(line => {
+      let data = lines.slice(1).map(line => {
         const values = line.split(',').map(v => v.replace(/"/g, ''))
         const row = {}
         headers.forEach((header, index) => {
@@ -751,6 +903,28 @@ const exportarExcel = async () => {
         })
         return row
       })
+
+      // Filtrar por año si hay un filtro activo
+      if (filtros.value.anio) {
+        data = data.filter(row => {
+          if (!row.createdAt && !row.created_at) return false
+          const createdAt = row.createdAt || row.created_at
+          try {
+            const fechaUsuario = new Date(createdAt)
+            const anioUsuario = fechaUsuario.getFullYear()
+            return anioUsuario === filtros.value.anio
+          } catch (error) {
+            console.warn('Error al parsear fecha:', createdAt)
+            return false
+          }
+        })
+        
+        // Verificar si hay datos después del filtro
+        if (data.length === 0) {
+          await showInfo(`No se encontraron registros para el año ${filtros.value.anio}`, 'Sin datos para exportar')
+          return
+        }
+      }
       
       // Crear workbook
       const workbook = XLSX.utils.book_new()
@@ -762,6 +936,7 @@ const exportarExcel = async () => {
         { key: 'nombre', title: 'Nombre', width: 18, type: 'text' },
         { key: 'apellidos', title: 'Apellidos', width: 18, type: 'text' },
         { key: 'email', title: 'Correo Electrónico', width: 30, type: 'text' },
+        { key: 'createdAt', title: 'Año de Creación', width: 15, type: 'year' },
         { key: 'total_respuestas', title: 'Total Respuestas', width: 18, type: 'number' },
         { key: 'carrera_recomendada', title: 'Carrera Recomendada', width: 25, type: 'text' }
       ]
@@ -786,6 +961,12 @@ const exportarExcel = async () => {
             value = carreraNames[value] || value || 'Sin asignar'
           }
           
+          if (col.type === 'year' && value) {
+            // Extraer año de la fecha ISO (ej: "2025-09-19T20:45:17.000Z" -> "2025")
+            const fecha = new Date(value)
+            value = fecha.getFullYear()
+          }
+          
           if (col.type === 'number') {
             value = parseInt(value) || 0
           }
@@ -798,9 +979,14 @@ const exportarExcel = async () => {
       // Crear worksheet vacío para control manual
       const worksheet = {}
       
+      // Definir título dinámico basado en el filtro
+      const tituloReporte = filtros.value.anio 
+        ? `REPORTE TEST VOCACIONAL - AÑO ${filtros.value.anio}`
+        : 'REPORTE TEST VOCACIONAL'
+      
       // Agregar título principal
       worksheet['A1'] = { 
-        v: 'REPORTE TEST VOCACIONAL', 
+        v: tituloReporte, 
         t: 's',
         s: {
           font: { bold: true, sz: 16 },
@@ -826,9 +1012,22 @@ const exportarExcel = async () => {
           alignment: { horizontal: 'left', vertical: 'center' }
         }
       }
+
+      // Agregar información del filtro si aplica
+      let headerRow = 6
+      if (filtros.value.anio) {
+        worksheet['A5'] = { 
+          v: `Filtrado por año: ${filtros.value.anio}`, 
+          t: 's',
+          s: {
+            font: { bold: true, sz: 12, color: { rgb: "FF0000" } },
+            alignment: { horizontal: 'left', vertical: 'center' }
+          }
+        }
+        headerRow = 7 // Mover headers una fila más abajo cuando hay filtro
+      }
       
-      // Headers de columnas (fila 6)
-      const headerRow = 6
+      // Headers de columnas
       columnDefinitions.forEach((col, index) => {
         const cellAddress = XLSX.utils.encode_cell({ r: headerRow - 1, c: index })
         worksheet[cellAddress] = {
@@ -922,16 +1121,22 @@ const exportarExcel = async () => {
       // Agregar worksheet al workbook
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte Test Vocacional')
       
-      // Generar archivo con fecha y hora
+      // Generar nombre de archivo dinámico
       const fecha = new Date().toISOString().split('T')[0]
       const hora = new Date().toTimeString().slice(0, 5).replace(':', '')
-      const fileName = `reporteTestVocacional_${fecha}_${hora}.xlsx`
+      const anioSufijo = filtros.value.anio ? `_${filtros.value.anio}` : ''
+      const fileName = `reporteTestVocacional${anioSufijo}_${fecha}_${hora}.xlsx`
       
       // Descargar archivo
       XLSX.writeFile(workbook, fileName)
       
+      // Mensaje dinámico según el filtro
+      const mensajeExito = filtros.value.anio 
+        ? `Reporte del año ${filtros.value.anio} exportado exitosamente (${data.length} registros)`
+        : `Reporte completo exportado exitosamente (${data.length} registros)`
+      
       await showSuccess(
-        `Reporte exportado exitosamente`, 
+        mensajeExito, 
         'Exportación completada'
       )
     } else {
@@ -987,6 +1192,117 @@ const eliminarUsuario = async (usuario) => {
   }
 }
 
+const eliminarUsuariosPorAnio = async () => {
+  if (!filtros.value.anio || usuariosFiltrados.value.length === 0) {
+    return
+  }
+  
+  const usuariosAEliminar = usuariosFiltrados.value
+  const anioSeleccionado = filtros.value.anio
+  
+  // Configurar datos para el modal personalizado
+  datosPendientesEliminacion.value = {
+    usuarios: usuariosAEliminar,
+    anio: anioSeleccionado,
+    cantidad: usuariosAEliminar.length
+  }
+  
+  // Abrir modal y iniciar contador
+  mostrarModalEliminacion.value = true
+  iniciarContadorConfirmacion()
+}
+
+const iniciarContadorConfirmacion = () => {
+  contadorConfirmacion.value = 5
+  
+  intervalID.value = setInterval(() => {
+    contadorConfirmacion.value--
+    
+    if (contadorConfirmacion.value <= 0) {
+      clearInterval(intervalID.value)
+    }
+  }, 1000)
+}
+
+const cerrarModalEliminacion = () => {
+  mostrarModalEliminacion.value = false
+  if (intervalID.value) {
+    clearInterval(intervalID.value)
+  }
+  contadorConfirmacion.value = 5
+  datosPendientesEliminacion.value = {
+    usuarios: [],
+    anio: null,
+    cantidad: 0
+  }
+}
+
+const confirmarEliminacionMasiva = async () => {
+  if (contadorConfirmacion.value > 0) {
+    return // No permitir confirmar hasta que pase el tiempo
+  }
+  
+  cerrarModalEliminacion()
+  
+  const { usuarios: usuariosAEliminar, anio: anioSeleccionado } = datosPendientesEliminacion.value
+  
+  try {
+    eliminandoPorAnio.value = true
+    let exitosos = 0
+    let fallidos = 0
+    
+    // Eliminar usuarios uno por uno (se podría optimizar con una API de eliminación masiva)
+    for (const usuario of usuariosAEliminar) {
+      try {
+        const respuesta = await eliminarUsuarioApi(usuario.id)
+        
+        if (respuesta.success) {
+          // Eliminar usuario de la lista local
+          const indice = usuarios.value.findIndex(u => u.id === usuario.id)
+          if (indice !== -1) {
+            usuarios.value.splice(indice, 1)
+          }
+          exitosos++
+        } else {
+          fallidos++
+          console.error(`Error al eliminar usuario ${usuario.id}:`, respuesta.message)
+        }
+      } catch (error) {
+        fallidos++
+        console.error(`Error al eliminar usuario ${usuario.id}:`, error)
+      }
+    }
+    
+    // Actualizar contadores de paginación
+    paginacion.value.total = Math.max(0, paginacion.value.total - exitosos)
+    
+    // Limpiar filtro de año después de la eliminación
+    filtros.value.anio = ''
+    
+    // Resetear paginación a la primera página
+    paginacionLocal.value.paginaActual = 1
+    
+    // Mostrar resultado
+    if (fallidos === 0) {
+      await showSuccess(
+        `Se eliminaron exitosamente ${exitosos} usuarios del año ${anioSeleccionado}`,
+        'Eliminación masiva completada'
+      )
+    } else {
+      await showError(
+        `Se eliminaron ${exitosos} usuarios exitosamente, pero ${fallidos} usuarios no pudieron ser eliminados. Revisa la consola para más detalles.`,
+        'Eliminación parcialmente completada'
+      )
+    }
+    
+  } catch (error) {
+    console.error('Error en eliminación masiva:', error)
+    await showError('Error inesperado durante la eliminación masiva', 'Error del sistema')
+  } finally {
+    eliminandoPorAnio.value = false
+  }
+}
+
 const mostrarModalCrear = () => {
   // Implementar creación de usuario
   console.log('Crear nuevo usuario')
@@ -1007,6 +1323,13 @@ const exportarUsuarios = async () => {
 // Ciclo de vida
 onMounted(() => {
   cargarUsuarios()
+})
+
+onUnmounted(() => {
+  // Limpiar interval si existe para evitar memory leaks
+  if (intervalID.value) {
+    clearInterval(intervalID.value)
+  }
 })
 </script>
 
@@ -1191,6 +1514,116 @@ onMounted(() => {
 
 .clear-search:hover {
   color: #dc3545;
+}
+
+/* Filtros adicionales */
+.additional-filters {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 15px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e9ecef;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  padding: 10px 15px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: 'Nunito', inherit;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+  min-width: 150px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #FF671F;
+}
+
+.filter-select:disabled {
+  background: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Botón eliminar por año */
+.btn-delete-year {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-height: 36px;
+}
+
+.btn-delete-year:hover:not(:disabled) {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.btn-delete-year:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Botón limpiar filtros mejorado */
+.btn-clear-filters {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-height: 36px;
+  min-width: fit-content;
+}
+
+.btn-clear-filters:hover {
+  background: #545b62;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.btn-text {
+  display: inline;
+}
+
+/* Responsivo para botones */
+@media (max-width: 640px) {
+  .btn-text {
+    display: none;
+  }
+  
+  .btn-clear-filters,
+  .btn-delete-year {
+    padding: 8px;
+    min-width: 36px;
+    justify-content: center;
+  }
 }
 
 /* Estadísticas */
@@ -1620,6 +2053,25 @@ onMounted(() => {
     right: 12px;
     font-size: 0.9rem;
   }
+  
+  /* Filtros adicionales en móvil */
+  .additional-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .filter-select {
+    min-width: auto;
+    width: 100%;
+    padding: 10px 12px;
+  }
+  
+  .btn-delete-year {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+  }
 }
 
 /* Móviles muy pequeños */
@@ -1687,6 +2139,17 @@ onMounted(() => {
     width: 30px;
     height: 30px;
     font-size: 0.8rem;
+  }
+  
+  /* Filtros adicionales en móviles pequeños */
+  .filter-select {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+  
+  .btn-clear-filters {
+    padding: 8px;
+    font-size: 0.9rem;
   }
 }
 
@@ -1912,6 +2375,207 @@ onMounted(() => {
   }
   
   .btn-cancel, .btn-save {
+    width: 100%;
+  }
+}
+
+/* Modal de eliminación masiva */
+.modal-delete {
+  max-width: 500px;
+  width: 90%;
+  position: relative;
+  margin: 0;
+}
+
+/* Overlay específico para modal de eliminación - Centrado forzado */
+.modal-overlay-delete {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 1001 !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+}
+
+.modal-header-delete {
+  background: #dc3545;
+  color: white;
+}
+
+.modal-body {
+  padding: 30px;
+}
+
+.modal-delete .modal-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin: 0 30px 30px 30px;
+  padding-top: 25px;
+  border-top: 1px solid #e9ecef;
+}
+
+.warning-content {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 25px;
+}
+
+.warning-icon {
+  font-size: 3rem;
+  color: #dc3545;
+  flex-shrink: 0;
+}
+
+.warning-text h3 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.warning-text p {
+  margin: 0 0 10px 0;
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+.warning-note {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 12px 15px;
+  color: #856404 !important;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.warning-note i {
+  color: #f39c12;
+}
+
+.countdown-section {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  border: 2px solid #e9ecef;
+}
+
+.countdown-timer {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #6c757d;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.countdown-timer i {
+  color: #dc3545;
+}
+
+.countdown-bar {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.countdown-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #dc3545, #c82333);
+  border-radius: 4px;
+  transition: width 1s linear;
+}
+
+.btn-cancel-delete, .btn-confirm-delete {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn-cancel-delete {
+  background: #007bff;
+  color: white;
+}
+
+.btn-cancel-delete:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.btn-confirm-delete {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-confirm-delete:hover:not(:disabled) {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+}
+
+.btn-confirm-disabled {
+  background: #6c757d !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Responsive para modal de eliminación */
+@media (max-width: 768px) {
+  .modal-delete {
+    width: 95%;
+    max-width: none;
+    margin: 0;
+  }
+  
+  .modal-overlay-delete {
+    padding: 10px !important;
+  }
+  
+  .warning-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+  }
+  
+  .warning-icon {
+    align-self: center;
+  }
+  
+  .modal-delete .modal-actions {
+    flex-direction: column;
+    margin: 0 20px 20px 20px;
+  }
+  
+  .btn-cancel-delete, .btn-confirm-delete {
     width: 100%;
   }
 }

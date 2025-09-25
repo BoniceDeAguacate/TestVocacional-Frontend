@@ -32,6 +32,12 @@ const router = createRouter({
       meta: { layout: 'login' }
     },
     {
+      path: '/recovery-password',
+      name: 'recovery-password',
+      component: () => import('../views/recovery/RecoveryPassword.vue'),
+      meta: { layout: 'login' }
+    },
+    {
       path: '/aspirante',
       component: MainLayout,
       meta: { requiresAuth: true, layout: 'aspirante' },

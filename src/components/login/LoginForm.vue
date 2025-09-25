@@ -17,6 +17,9 @@
       <span class="register-question">¿No tienes cuenta?</span>
       <a @click.prevent="goToRegister" href="#">Regístrate aquí</a>
     </div>
+    <div class="forgot-password-link">
+      <a @click.prevent="goToRecovery" href="#">¿Olvidaste tu contraseña?</a>
+    </div>
   </form>
 </template>
 
@@ -58,6 +61,10 @@ async function handleLogin() {
 
 function goToRegister() {
   router.push('/register')
+}
+
+function goToRecovery() {
+  router.push('/recovery-password')
 }
 </script>
 
@@ -152,5 +159,16 @@ function goToRegister() {
   cursor: pointer;
   text-decoration: underline;
   font-weight: 700;
+}
+.login-form .forgot-password-link {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+.login-form .forgot-password-link a {
+  color: var(--color-secundario);
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 600;
 }
 </style>

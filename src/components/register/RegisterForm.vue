@@ -28,6 +28,19 @@
       <div v-if="emailValid" class="field-success">✓ Email válido</div>
     </div>
     <div>
+      <label for="confirmEmail">Confirmar correo electrónico</label>
+      <input 
+        id="confirmEmail" 
+        v-model="confirmEmail" 
+        type="email" 
+        required
+        :class="{ 'input-error': confirmEmailError, 'input-valid': confirmEmailValid }"
+        @input="validateConfirmEmail"
+      />
+      <div v-if="confirmEmailError" class="field-error">{{ confirmEmailErrorMessage }}</div>
+      <div v-if="confirmEmailValid" class="field-success">✓ Los correos coinciden</div>
+    </div>
+    <div>
       <label for="password">Contraseña</label>
       <input 
         id="password" 
@@ -67,6 +80,7 @@ const nombre = ref('')
 const apellidos = ref('')
 const curp = ref('')
 const email = ref('')
+const confirmEmail = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const error = ref('')
@@ -83,6 +97,11 @@ const emailError = ref(false)
 const emailValid = ref(false)
 const emailErrorMessage = ref('')
 
+// Estados de validación de confirmación de email
+const confirmEmailError = ref(false)
+const confirmEmailValid = ref(false)
+const confirmEmailErrorMessage = ref('')
+
 function validateEmail() {
   const emailValue = email.value
   
@@ -90,6 +109,10 @@ function validateEmail() {
     emailError.value = false
     emailValid.value = false
     emailErrorMessage.value = ''
+    // Re-validar confirmación si hay contenido
+    if (confirmEmail.value.length > 0) {
+      validateConfirmEmail()
+    }
     return
   }
   
@@ -100,12 +123,52 @@ function validateEmail() {
     emailError.value = true
     emailValid.value = false
     emailErrorMessage.value = 'Ingresa un email válido (ejemplo: usuario@dominio.com)'
+    // Re-validar confirmación si hay contenido
+    if (confirmEmail.value.length > 0) {
+      validateConfirmEmail()
+    }
     return
   }
   
   emailError.value = false
   emailValid.value = true
   emailErrorMessage.value = ''
+  
+  // Re-validar confirmación si hay contenido
+  if (confirmEmail.value.length > 0) {
+    validateConfirmEmail()
+  }
+}
+
+function validateConfirmEmail() {
+  const confirmEmailValue = confirmEmail.value
+  
+  if (confirmEmailValue.length === 0) {
+    confirmEmailError.value = false
+    confirmEmailValid.value = false
+    confirmEmailErrorMessage.value = ''
+    return
+  }
+  
+  // Verificar que el email principal sea válido primero
+  if (emailError.value || email.value.length === 0) {
+    confirmEmailError.value = true
+    confirmEmailValid.value = false
+    confirmEmailErrorMessage.value = 'Primero ingresa un email válido'
+    return
+  }
+  
+  // Verificar que los emails coincidan
+  if (confirmEmailValue !== email.value) {
+    confirmEmailError.value = true
+    confirmEmailValid.value = false
+    confirmEmailErrorMessage.value = 'Los correos electrónicos no coinciden'
+    return
+  }
+  
+  confirmEmailError.value = false
+  confirmEmailValid.value = true
+  confirmEmailErrorMessage.value = ''
 }
 
 function validatePassword() {
@@ -138,6 +201,12 @@ async function handleRegister() {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email.value)) {
     showError('Por favor ingresa un email válido.', 'Error de validación')
+    return
+  }
+  
+  // Validar que los emails coincidan
+  if (email.value !== confirmEmail.value) {
+    showError('Los correos electrónicos no coinciden. Por favor, verifica que ambos sean iguales.', 'Error de validación')
     return
   }
   
