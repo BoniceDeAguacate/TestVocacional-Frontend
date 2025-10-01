@@ -40,6 +40,75 @@
       <div v-if="confirmEmailError" class="field-error">{{ confirmEmailErrorMessage }}</div>
       <div v-if="confirmEmailValid" class="field-success">✓ Los correos coinciden</div>
     </div>
+    
+    <!-- Nuevo campo: Escuela de procedencia -->
+    <div>
+      <label for="escuelaProcedencia">Escuela de procedencia</label>
+      <select 
+        id="escuelaProcedencia" 
+        v-model="escuelaProcedencia" 
+        required
+        @change="handleEscuelaChange"
+      >
+        <option value="">Selecciona tu escuela</option>
+        <option value="Colegio de bachilleres I">Colegio de bachilleres I</option>
+        <option value="Colegio de bachilleres II">Colegio de bachilleres II</option>
+        <option value="Colegio de bachilleres III">Colegio de bachilleres III</option>
+        <option value="Colegio de bachilleres IV">Colegio de bachilleres IV</option>
+        <option value="CECYTE I">CECYTE I</option>
+        <option value="CECYTE II">CECYTE II</option>
+        <option value="CECYTE III">CECYTE III</option>
+        <option value="CECYTE IV">CECYTE IV</option>
+        <option value="CBTIS 111">CBTIS 111</option>
+        <option value="CBTIS 272">CBTIS 272</option>
+        <option value="CERTMAR">CERTMAR</option>
+        <option value="CONALEP 1">CONALEP 1</option>
+        <option value="CONALEP 2">CONALEP 2</option>
+        <option value="CONALEP 3">CONALEP 3</option>
+        <option value="CONALEP 4">CONALEP 4</option>
+        <option value="PRIVADA">PRIVADA</option>
+        <option value="OTRO">OTRO</option>
+      </select>
+    </div>
+    
+    <!-- Campo adicional para "OTRO" -->
+    <div v-if="escuelaProcedencia === 'OTRO'">
+      <label for="otraEscuela">Especifica tu escuela</label>
+      <input 
+        id="otraEscuela" 
+        v-model="otraEscuela" 
+        placeholder="Ingresa el nombre de tu escuela"
+        required
+      />
+    </div>
+    
+    <!-- Nuevo campo: Género -->
+    <div>
+      <label>Género</label>
+      <div class="radio-group">
+        <div class="radio-option">
+          <input 
+            id="genero-hombre" 
+            type="radio" 
+            v-model="genero" 
+            value="Hombre" 
+            required
+          />
+          <label for="genero-hombre" class="radio-label">Hombre</label>
+        </div>
+        <div class="radio-option">
+          <input 
+            id="genero-mujer" 
+            type="radio" 
+            v-model="genero" 
+            value="Mujer" 
+            required
+          />
+          <label for="genero-mujer" class="radio-label">Mujer</label>
+        </div>
+      </div>
+    </div>
+    
     <div>
       <label for="password">Contraseña</label>
       <input 
@@ -83,6 +152,11 @@ const email = ref('')
 const confirmEmail = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+// Nuevos campos
+const escuelaProcedencia = ref('')
+const otraEscuela = ref('')
+const genero = ref('')
+
 const error = ref('')
 const success = ref(false)
 const router = useRouter()
@@ -101,6 +175,13 @@ const emailErrorMessage = ref('')
 const confirmEmailError = ref(false)
 const confirmEmailValid = ref(false)
 const confirmEmailErrorMessage = ref('')
+
+function handleEscuelaChange() {
+  // Limpiar el campo "otra escuela" si se selecciona una opción diferente a "OTRO"
+  if (escuelaProcedencia.value !== 'OTRO') {
+    otraEscuela.value = ''
+  }
+}
 
 function validateEmail() {
   const emailValue = email.value
@@ -222,7 +303,35 @@ async function handleRegister() {
     return
   }
   
-  const result = await registerService(curp.value, email.value, password.value, nombre.value, apellidos.value)
+  // Validar campos nuevos
+  if (!escuelaProcedencia.value) {
+    showError('Por favor selecciona tu escuela de procedencia.', 'Error de validación')
+    return
+  }
+  
+  if (escuelaProcedencia.value === 'OTRO' && !otraEscuela.value.trim()) {
+    showError('Por favor especifica el nombre de tu escuela.', 'Error de validación')
+    return
+  }
+  
+  if (!genero.value) {
+    showError('Por favor selecciona tu género.', 'Error de validación')
+    return
+  }
+  
+  // Determinar la escuela final a enviar
+  const escuelaFinal = escuelaProcedencia.value === 'OTRO' ? otraEscuela.value.trim() : escuelaProcedencia.value
+  
+  const result = await registerService(
+    curp.value, 
+    email.value, 
+    password.value, 
+    nombre.value, 
+    apellidos.value,
+    escuelaFinal,
+    genero.value
+  )
+  
   if (result.success) {
     showSuccess('¡Tu cuenta ha sido creada exitosamente! Serás redirigido al login.', '¡Registro exitoso!')
     setTimeout(() => {
@@ -272,7 +381,8 @@ function goToLogin() {
   color: var(--negro);
   font-weight: 500;
 }
-.register-form input {
+.register-form input,
+.register-form select {
   width: 100%;
   padding: 0.5rem;
   border: 2px solid lightgray;
@@ -284,7 +394,8 @@ function goToLogin() {
   box-shadow: 0 2px 4px rgba(91,52,39,0.08);
   transition: border 0.2s, box-shadow 0.2s;
 }
-.register-form input:focus {
+.register-form input:focus,
+.register-form select:focus {
   border: 2.5px solid var(--color-secundario);
   box-shadow: 0 0 0 2px rgba(91,52,39,0.15);
 }
@@ -354,5 +465,40 @@ function goToLogin() {
   font-size: 0.8rem;
   margin-top: 5px;
   font-weight: 500;
+}
+
+/* Estilos para radio buttons de género */
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.3rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.radio-option input[type="radio"] {
+  width: auto;
+  margin: 0;
+}
+
+.radio-label {
+  margin: 0 !important;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+/* Personalizar el select */
+.register-form select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
 }
 </style>

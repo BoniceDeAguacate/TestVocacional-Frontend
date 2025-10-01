@@ -126,7 +126,9 @@
               </div>
             </div>
           </div>
-          
+          <div v-if="materiaRecomendada.nombre !== 'Sin recomendación' && materiaRecomendada.puntuacion > 0" class="aviso-educativo">
+            <small>Este resultado es enunciativo para fines educativos. Se sugiere la orientación vocacional complementaria con un profesional.</small>
+          </div>
           <div v-if="materiaRecomendada.nombre !== 'Sin recomendación' && materiaRecomendada.puntuacion === 0" class="mensaje-reintento">
             <span class="icono-info"><i class="fas fa-lightbulb"></i></span>
             <span>Responde "Sí" a las actividades que realmente te gustan o en las que te sientes hábil.</span>
@@ -1055,5 +1057,30 @@ export default {
 }
 .btn.btn-danger:hover:not(:disabled) {
   background: #e55d13;
+}
+.aviso-educativo {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #6c757d;
+  text-align: center;
+}
+
+.aviso-educativo small {
+  color: #6c757d;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .aviso-educativo {
+    margin-top: 12px;
+    padding: 10px 12px;
+  }
+    .aviso-educativo small {
+    font-size: 0.75rem;
+  }
 }
 </style>
