@@ -18,9 +18,9 @@ export async function login(curp, password) {
 }
 
 
-export async function register(curp, email, password, nombre, apellidos) {
+export async function register(curp, email, password, nombre, apellidos, escuela_procedencia, genero) {
   try {
-    const response = await api.post('/users/register', { curp, email, password, nombre, apellidos });
+    const response = await api.post('/users/register', { curp, email, password, nombre, apellidos, escuela_procedencia, genero });
     return { success: true, message: response.data.message };
   } catch (err) {
     const msg = err.response?.data?.message || err.message || 'Error al registrarse';
