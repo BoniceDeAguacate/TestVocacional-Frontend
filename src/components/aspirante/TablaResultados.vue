@@ -497,8 +497,14 @@ export default {
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['avoid-all'] },
           onclone: (doc) => {
+            // Importar la fuente Nunito correctamente
+            const link = doc.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap';
+            doc.head.appendChild(link);
+            // Forzar la fuente Nunito en todo el documento
             const style = doc.createElement('style');
-            style.textContent = `@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap'); body, * { font-family: 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; }`;
+            style.textContent = `body, * { font-family: 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; }`;
             doc.head.appendChild(style);
           }
         })

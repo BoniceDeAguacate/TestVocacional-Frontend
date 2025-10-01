@@ -59,6 +59,17 @@
             {{ anio }}
           </option>
         </select>
+
+        <!-- Filtro de rango de meses -->
+        <select v-model="filtros.rangoMeses" class="filter-select" :disabled="!filtros.anio">
+          <option value="">Todos los meses</option>
+          <option value="1-2">Enero - Febrero</option>
+          <option value="3-4">Marzo - Abril</option>
+          <option value="5-6">Mayo - Junio</option>
+          <option value="7-8">Julio - Agosto</option>
+          <option value="9-10">Septiembre - Octubre</option>
+          <option value="11-12">Noviembre - Diciembre</option>
+        </select>
       </div>
     </div>
 
@@ -151,7 +162,8 @@ const filtros = ref({
   busqueda: '',
   estado: '',
   carrera: '',
-  anio: ''
+  anio: '',
+  rangoMeses: '' // Nuevo filtro de rango de meses
 })
 
 // Computed properties
@@ -212,7 +224,19 @@ const usuariosFiltrados = computed(() => {
     resultado = resultado.filter(usuario => {
       if (!usuario.createdAt) return false
       const anioUsuario = new Date(usuario.createdAt).getFullYear()
-      return anioUsuario === filtros.value.anio // Comparar números directamente
+      // Comparar números directamente
+      return anioUsuario === filtros.value.anio
+    })
+  }
+
+  // Filtro por rango de meses (solo si hay año seleccionado y rango de meses seleccionado)
+  if (filtros.value.anio && filtros.value.rangoMeses) {
+    const [mesInicio, mesFin] = filtros.value.rangoMeses.split('-').map(Number)
+    resultado = resultado.filter(usuario => {
+      if (!usuario.createdAt) return false
+      const fecha = new Date(usuario.createdAt)
+      const mes = fecha.getMonth() + 1 // getMonth() es 0-indexado
+      return mes >= mesInicio && mes <= mesFin
     })
   }
 
@@ -327,11 +351,15 @@ const borrarResultadosUsuario = async (usuario) => {
 
 // Watchers para limpiar filtros cuando cambian
 watch(
-  [() => filtros.value.busqueda, () => filtros.value.estado, () => filtros.value.carrera, () => filtros.value.anio],
-  () => {
+  [() => filtros.value.busqueda, () => filtros.value.estado, () => filtros.value.carrera, () => filtros.value.anio, () => filtros.value.rangoMeses],
+  ([, , , nuevoAnio, nuevoRangoMeses], [ , , , prevAnio]) => {
     // Resetear a la primera página cuando cambian los filtros
     if (paginaActual.value !== 1) {
       paginaActual.value = 1
+    }
+    // Si se cambia el año, limpiar el filtro de meses
+    if (nuevoAnio !== prevAnio) {
+      filtros.value.rangoMeses = ''
     }
   }
 )
@@ -344,6 +372,13 @@ onMounted(() => {
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
+
+.filter-select:disabled {
+  background: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
 
 .admin-dashboard {
   max-width: 1200px;

@@ -38,6 +38,16 @@
                   {{ anio }}
                 </option>
               </select>
+
+              <select v-model="filtros.rangoMeses" class="filter-select" :disabled="!filtros.anio">
+  <option value="">Todos los meses</option>
+  <option value="1-2">Enero - Febrero</option>
+  <option value="3-4">Marzo - Abril</option>
+  <option value="5-6">Mayo - Junio</option>
+  <option value="7-8">Julio - Agosto</option>
+  <option value="9-10">Septiembre - Octubre</option>
+  <option value="11-12">Noviembre - Diciembre</option>
+</select>
               
               <button 
                 @click="eliminarUsuariosPorAnio" 
@@ -427,7 +437,8 @@ const erroresValidacion = ref({})
 // Filtros y búsqueda
 const filtros = ref({
   busqueda: '',
-  anio: ''
+  anio: '', 
+  rangoMeses: ''
 })
 
 // Paginación del servidor
@@ -492,6 +503,17 @@ const usuariosFiltrados = computed(() => {
     })
   }
 
+  // Filtro por rango de meses (solo si hay año seleccionado y rango de meses seleccionado)
+  if (filtros.value.anio && filtros.value.rangoMeses) {
+    const [mesInicio, mesFin] = filtros.value.rangoMeses.split('-').map(Number)
+    resultado = resultado.filter(usuario => {
+      if (!usuario.createdAt) return false
+      const fecha = new Date(usuario.createdAt)
+      const mes = fecha.getMonth() + 1 // getMonth() es 0-indexado
+      return mes >= mesInicio && mes <= mesFin
+    })
+  }
+
   return resultado
 })
 
@@ -547,11 +569,13 @@ watch(usuariosFiltrados, (nuevosUsuarios) => {
 
 // Watcher para resetear paginación cuando cambian los filtros
 watch(
-  [() => filtros.value.busqueda, () => filtros.value.anio],
-  () => {
-    // Resetear a la primera página cuando cambian los filtros
+  [() => filtros.value.busqueda, () => filtros.value.anio, () => filtros.value.rangoMeses],
+  ([, nuevoAnio,], [, prevAnio]) => {
     if (paginacionLocal.value.paginaActual !== 1) {
       paginacionLocal.value.paginaActual = 1
+    }
+    if (nuevoAnio !== prevAnio) {
+      filtros.value.rangoMeses = ''
     }
   }
 )
@@ -1199,11 +1223,13 @@ const eliminarUsuariosPorAnio = async () => {
   
   const usuariosAEliminar = usuariosFiltrados.value
   const anioSeleccionado = filtros.value.anio
+  const rangoMesesSeleccionado = filtros.value.rangoMeses
   
   // Configurar datos para el modal personalizado
   datosPendientesEliminacion.value = {
     usuarios: usuariosAEliminar,
     anio: anioSeleccionado,
+    rangoMeses: rangoMesesSeleccionado,
     cantidad: usuariosAEliminar.length
   }
   
@@ -1241,16 +1267,16 @@ const confirmarEliminacionMasiva = async () => {
   if (contadorConfirmacion.value > 0) {
     return // No permitir confirmar hasta que pase el tiempo
   }
-  
+
+  // Guardar año y rango de meses antes de cerrar el modal (para mostrar en el mensaje)
+  const { usuarios: usuariosAEliminar, anio: anioSeleccionado, rangoMeses: rangoMesesSeleccionado } = datosPendientesEliminacion.value
+
   cerrarModalEliminacion()
-  
-  const { usuarios: usuariosAEliminar, anio: anioSeleccionado } = datosPendientesEliminacion.value
-  
+
   try {
     eliminandoPorAnio.value = true
     let exitosos = 0
     let fallidos = 0
-    
     // Eliminar usuarios uno por uno (se podría optimizar con una API de eliminación masiva)
     for (const usuario of usuariosAEliminar) {
       try {
@@ -1283,9 +1309,19 @@ const confirmarEliminacionMasiva = async () => {
     paginacionLocal.value.paginaActual = 1
     
     // Mostrar resultado
+    let mensajeRango = ''
+    if (rangoMesesSeleccionado) {
+      // Convertir rango de meses a texto legible
+      const meses = [
+        '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      ]
+      const [mesInicio, mesFin] = rangoMesesSeleccionado.split('-').map(Number)
+      mensajeRango = ` (${meses[mesInicio]} - ${meses[mesFin]})`
+    }
     if (fallidos === 0) {
       await showSuccess(
-        `Se eliminaron exitosamente ${exitosos} usuarios del año ${anioSeleccionado}`,
+        `Se eliminaron exitosamente ${exitosos} usuarios del año ${anioSeleccionado}${mensajeRango}`,
         'Eliminación masiva completada'
       )
     } else {
