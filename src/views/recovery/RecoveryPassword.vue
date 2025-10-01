@@ -351,7 +351,6 @@ const acceptModal = () => {
   width: 100%;
   max-width: 400px;
   text-align: center;
-  border: 2px solid var(--color-secundario);
 }
 
 .logo {

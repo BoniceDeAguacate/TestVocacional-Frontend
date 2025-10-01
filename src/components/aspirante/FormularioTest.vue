@@ -46,7 +46,7 @@
           <div :key="currentPage" class="page-container">
             <!-- Página dinámica según la materia actual -->
             <div class="section">
-              <h2>Tabla {{ currentPage }} {{ getCurrentMateriaCode() }}</h2>
+              <h2>Bloque {{ currentPage }}</h2>
               <h3>Interés</h3>
               <div class="questions">
                 <div v-for="(question, index) in getCurrentQuestions().interes" :key="'int-' + question.id" class="question">
@@ -184,11 +184,6 @@ const getCurrentQuestions = () => {
   return questions.value[materiaActual] || { interes: [], aptitud: [] }
 }
 
-const getCurrentMateriaCode = () => {
-  const codes = ['C', 'H', 'A', 'S', 'I', 'D', 'E']
-  return codes[currentPage.value - 1] || ''
-}
-
 const getPageProgress = () => {
   const materiaActual = ordenMaterias[currentPage.value - 1]
   const currentQuestions = questions.value[materiaActual] || { interes: [], aptitud: [] }
@@ -307,6 +302,44 @@ const scrollToTop = () => {
 // Funciones principales
 const updateAnswer = (questionId, value) => {
   answers.value[questionId] = value
+  saveAnswersToLocalStorage()
+}
+
+// Funciones para localStorage
+const getLocalStorageKey = () => {
+  const curp = localStorage.getItem('curp')
+  return `test_answers_${curp}`
+}
+
+const saveAnswersToLocalStorage = () => {
+  try {
+    const key = getLocalStorageKey()
+    localStorage.setItem(key, JSON.stringify(answers.value))
+  } catch (error) {
+    console.error('Error al guardar respuestas en localStorage:', error)
+  }
+}
+
+const loadAnswersFromLocalStorage = () => {
+  try {
+    const key = getLocalStorageKey()
+    const savedAnswers = localStorage.getItem(key)
+    if (savedAnswers) {
+      answers.value = JSON.parse(savedAnswers)
+    }
+  } catch (error) {
+    console.error('Error al cargar respuestas desde localStorage:', error)
+    answers.value = {}
+  }
+}
+
+const clearAnswersFromLocalStorage = () => {
+  try {
+    const key = getLocalStorageKey()
+    localStorage.removeItem(key)
+  } catch (error) {
+    console.error('Error al eliminar respuestas del localStorage:', error)
+  }
 }
 
 const cargarPreguntas = async () => {
@@ -319,6 +352,9 @@ const cargarPreguntas = async () => {
     if (response.success) {
       questions.value = procesarPreguntasAPI(response.data)
       console.log('Preguntas procesadas:', questions.value)
+      
+      // Cargar respuestas guardadas después de cargar las preguntas
+      loadAnswersFromLocalStorage()
     } else {
       errorQuestions.value = response.message
     }
@@ -358,6 +394,10 @@ const submitTest = async () => {
 
     if (response.success) {
       showSubmitSuccess.value = true
+      
+      // Limpiar respuestas del localStorage al completar exitosamente
+      clearAnswersFromLocalStorage()
+      
       await showSuccess(
         'Tus respuestas han sido enviadas exitosamente. ¡Ya puedes ver tus resultados!',
         '🎉 ¡Test Completado!'
@@ -520,6 +560,21 @@ onMounted(() => {
   margin: 0 0 10px 0;
   font-size: 1.3em;
   font-weight: 600;
+}
+
+.auto-save-indicator {
+  color: #28a745;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.save-icon {
+  font-size: 1rem;
 }
 
 .progress-bar {

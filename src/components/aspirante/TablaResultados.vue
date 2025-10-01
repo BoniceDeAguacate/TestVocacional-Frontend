@@ -16,6 +16,14 @@
 
     <!-- Results content -->
     <div v-else-if="resultados.length > 0" class="resultados-content">
+      <!-- Botón para guardar PDF, oculto en impresión/pdf -->
+      <div class="pdf-btn-container no-print" style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+        <button @click="generarPDF" :disabled="generandoPDF" class="btn btn-danger">
+          <i class="fas fa-file-pdf"></i>
+          {{ generandoPDF ? 'Generando PDF...' : 'Guardar PDF' }}
+        </button>
+      </div>
+
       <!-- Resumen general -->
       <div class="resumen">
         <h3>Resumen General</h3>
@@ -141,6 +149,7 @@
 
 <script>
 import { obtenerResultadosTest, obtenerCurpUsuario } from '../../services/aspirante/aspiranteService';
+import html2pdf from 'html2pdf.js';
 
 export default {
   name: 'TablaResultados',
@@ -163,7 +172,8 @@ export default {
       resultados: [],
       usuarioInfo: null,
       loading: true,
-      error: null
+      error: null,
+      generandoPDF: false
     };
   },
   computed: {
@@ -462,6 +472,41 @@ export default {
       };
       
       return carreras[materia] || [`Carreras relacionadas con ${this.formatearNombreMateria(materia)}`];
+    },
+
+    async generarPDF() {
+      this.generandoPDF = true;
+      // Selecciona solo la vista de resultados
+      const el = this.$el.querySelector('.resultados-content');
+      // Oculta el botón antes de exportar
+      const btn = this.$el.querySelector('.pdf-btn-container');
+      if (btn) btn.style.display = 'none';
+      // Espera a que el botón desaparezca visualmente
+      await new Promise(r => setTimeout(r, 100));
+      // Carga html2pdf si no está global
+      let html2pdf = window.html2pdf;
+      if (!html2pdf) {
+        html2pdf = (await import('html2pdf.js')).default;
+      }
+      await html2pdf()
+        .set({
+          margin: 0,
+          filename: `resultados-test-vocacional-${new Date().toISOString().split('T')[0]}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: null },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all'] },
+          onclone: (doc) => {
+            const style = doc.createElement('style');
+            style.textContent = `@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap'); body, * { font-family: 'Nunito', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; }`;
+            doc.head.appendChild(style);
+          }
+        })
+        .from(el)
+        .save();
+      // Restaura el botón
+      if (btn) btn.style.display = '';
+      this.generandoPDF = false;
     }
   }
 };
@@ -963,5 +1008,46 @@ export default {
     flex-direction: column;
     gap: 15px;
   }
+}
+
+/* Oculta el botón PDF en impresión/pdf */
+.no-print {
+  display: block;
+}
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Botón PDF discreto */
+.pdf-btn-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+  padding: 0 0 0 0;
+}
+.btn.btn-danger {
+  font-family: 'Nunito', 'Segoe UI', Arial, sans-serif;
+  background: #FF671F;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 18px;
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: none;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn.btn-danger:disabled {
+  background: #ccc;
+  color: #fff;
+  cursor: not-allowed;
+}
+.btn.btn-danger:hover:not(:disabled) {
+  background: #e55d13;
 }
 </style>
