@@ -60,15 +60,28 @@
           </option>
         </select>
 
-        <!-- Filtro de rango de meses -->
-        <select v-model="filtros.rangoMeses" class="filter-select" :disabled="!filtros.anio">
-          <option value="">Todos los meses</option>
-          <option value="1-2">Enero - Febrero</option>
-          <option value="3-4">Marzo - Abril</option>
-          <option value="5-6">Mayo - Junio</option>
-          <option value="7-8">Julio - Agosto</option>
-          <option value="9-10">Septiembre - Octubre</option>
-          <option value="11-12">Noviembre - Diciembre</option>
+        <!-- Filtros de mes inicial y final -->
+        <select v-model="filtros.mesInicial" class="filter-select" :disabled="!filtros.anio">
+          <option value="">Mes inicial</option>
+          <option value="1">Enero</option>
+          <option value="2">Febrero</option>
+          <option value="3">Marzo</option>
+          <option value="4">Abril</option>
+          <option value="5">Mayo</option>
+          <option value="6">Junio</option>
+          <option value="7">Julio</option>
+          <option value="8">Agosto</option>
+          <option value="9">Septiembre</option>
+          <option value="10">Octubre</option>
+          <option value="11">Noviembre</option>
+          <option value="12">Diciembre</option>
+        </select>
+
+        <select v-model="filtros.mesFinal" class="filter-select" :disabled="!filtros.anio || !filtros.mesInicial">
+          <option value="">Mes final</option>
+          <option v-for="mes in mesesFinalesDisponibles" :key="mes.value" :value="mes.value">
+            {{ mes.label }}
+          </option>
         </select>
       </div>
     </div>
@@ -163,7 +176,8 @@ const filtros = ref({
   estado: '',
   carrera: '',
   anio: '',
-  rangoMeses: '' // Nuevo filtro de rango de meses
+  mesInicial: '', // Nuevo filtro de mes inicial
+  mesFinal: '' // Nuevo filtro de mes final
 })
 
 // Computed properties
@@ -187,6 +201,30 @@ const aniosDisponibles = computed(() => {
     }
   })
   return Array.from(anios).sort((a, b) => b - a) // Ordenar de más reciente a más antiguo
+})
+
+const mesesFinalesDisponibles = computed(() => {
+  const mesInicio = Number(filtros.value.mesInicial)
+  const anio = Number(filtros.value.anio)
+  const meses = [
+    { value: 1, label: 'Enero' },
+    { value: 2, label: 'Febrero' },
+    { value: 3, label: 'Marzo' },
+    { value: 4, label: 'Abril' },
+    { value: 5, label: 'Mayo' },
+    { value: 6, label: 'Junio' },
+    { value: 7, label: 'Julio' },
+    { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Septiembre' },
+    { value: 10, label: 'Octubre' },
+    { value: 11, label: 'Noviembre' },
+    { value: 12, label: 'Diciembre' }
+  ]
+  
+  if (!mesInicio || !anio) return []
+  
+  // Filtrar meses que son mayores o iguales al mes de inicio seleccionado
+  return meses.filter(mes => mes.value >= mesInicio)
 })
 
 const usuariosFiltrados = computed(() => {
@@ -230,8 +268,9 @@ const usuariosFiltrados = computed(() => {
   }
 
   // Filtro por rango de meses (solo si hay año seleccionado y rango de meses seleccionado)
-  if (filtros.value.anio && filtros.value.rangoMeses) {
-    const [mesInicio, mesFin] = filtros.value.rangoMeses.split('-').map(Number)
+  if (filtros.value.anio && filtros.value.mesInicial && filtros.value.mesFinal) {
+    const mesInicio = Number(filtros.value.mesInicial)
+    const mesFin = Number(filtros.value.mesFinal)
     resultado = resultado.filter(usuario => {
       if (!usuario.createdAt) return false
       const fecha = new Date(usuario.createdAt)
@@ -351,15 +390,23 @@ const borrarResultadosUsuario = async (usuario) => {
 
 // Watchers para limpiar filtros cuando cambian
 watch(
-  [() => filtros.value.busqueda, () => filtros.value.estado, () => filtros.value.carrera, () => filtros.value.anio, () => filtros.value.rangoMeses],
-  ([, , , nuevoAnio, nuevoRangoMeses], [ , , , prevAnio]) => {
+  [() => filtros.value.busqueda, () => filtros.value.estado, () => filtros.value.carrera, () => filtros.value.anio, () => filtros.value.mesInicial, () => filtros.value.mesFinal],
+  ([, , , nuevoAnio, nuevoMesInicial], [ , , , prevAnio, prevMesInicial]) => {
     // Resetear a la primera página cuando cambian los filtros
     if (paginaActual.value !== 1) {
       paginaActual.value = 1
     }
     // Si se cambia el año, limpiar el filtro de meses
     if (nuevoAnio !== prevAnio) {
-      filtros.value.rangoMeses = ''
+      filtros.value.mesInicial = ''
+      filtros.value.mesFinal = ''
+    }
+    // Si se cambia el mes inicial, actualizar los meses finales disponibles
+    if (nuevoMesInicial !== prevMesInicial) {
+      // Si el nuevo mes inicial es mayor que el mes final actual, actualizar el mes final
+      if (nuevoMesInicial > filtros.value.mesFinal) {
+        filtros.value.mesFinal = nuevoMesInicial
+      }
     }
   }
 )
@@ -454,8 +501,8 @@ onMounted(() => {
 
 .search-filters {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
-  gap: 15px;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 20px;
   align-items: center;
 }
 
@@ -465,7 +512,7 @@ onMounted(() => {
 
 .search-input {
   width: 100%;
-  padding: 12px 15px;
+  padding: 12px 6px;
   border: 2px solid #ecf0f1;
   border-radius: 8px;
   font-size: 1rem;
@@ -487,6 +534,7 @@ onMounted(() => {
   background: white;
   cursor: pointer;
   transition: border-color 0.3s ease;
+  min-width: 140px; /* Agregar ancho mínimo para evitar que se vean muy estrechos */
 }
 
 .filter-select:focus {
@@ -634,6 +682,13 @@ onMounted(() => {
 }
 
 /* Responsive */
+@media (max-width: 1200px) {
+  .search-filters {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+  }
+}
+
 @media (max-width: 768px) {
   .admin-dashboard {
     padding: 10px;
@@ -653,6 +708,11 @@ onMounted(() => {
   
   .search-filters {
     grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .filter-select {
+    min-width: unset; /* Quitar ancho mínimo en móvil */
   }
   
   .usuarios-grid {
@@ -662,6 +722,17 @@ onMounted(() => {
   .pagination {
     flex-direction: column;
     gap: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filters-section {
+    padding: 15px;
+  }
+  
+  .search-input, .filter-select {
+    padding: 10px 12px;
+    font-size: 0.9rem;
   }
 }
 </style>

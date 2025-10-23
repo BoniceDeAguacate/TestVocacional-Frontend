@@ -39,15 +39,28 @@
                 </option>
               </select>
 
-              <select v-model="filtros.rangoMeses" class="filter-select" :disabled="!filtros.anio">
-  <option value="">Todos los meses</option>
-  <option value="1-2">Enero - Febrero</option>
-  <option value="3-4">Marzo - Abril</option>
-  <option value="5-6">Mayo - Junio</option>
-  <option value="7-8">Julio - Agosto</option>
-  <option value="9-10">Septiembre - Octubre</option>
-  <option value="11-12">Noviembre - Diciembre</option>
-</select>
+  <select v-model="filtros.mesInicial" class="filter-select" :disabled="!filtros.anio">
+                <option value="">Mes inicial</option>
+                <option value="1">Enero</option>
+                <option value="2">Febrero</option>
+                <option value="3">Marzo</option>
+                <option value="4">Abril</option>
+                <option value="5">Mayo</option>
+                <option value="6">Junio</option>
+                <option value="7">Julio</option>
+                <option value="8">Agosto</option>
+                <option value="9">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+              </select>
+
+              <select v-model="filtros.mesFinal" class="filter-select" :disabled="!filtros.anio || !filtros.mesInicial">
+                <option value="">Mes final</option>
+                <option v-for="mes in mesesFinalesDisponibles" :key="mes.value" :value="mes.value">
+                  {{ mes.label }}
+                </option>
+              </select>
               
               <button 
                 @click="eliminarUsuariosPorAnio" 
@@ -417,6 +430,8 @@ const intervalID = ref(null)
 const datosPendientesEliminacion = ref({
   usuarios: [],
   anio: null,
+  mesInicial: '',
+  mesFinal: '',
   cantidad: 0
 })
 
@@ -438,7 +453,8 @@ const erroresValidacion = ref({})
 const filtros = ref({
   busqueda: '',
   anio: '', 
-  rangoMeses: ''
+  mesInicial: '', // Cambio: mes inicial
+  mesFinal: ''    // Cambio: mes final
 })
 
 // Paginación del servidor
@@ -480,6 +496,29 @@ const getEstadoUsuario = (usuario) => {
   return 'aspirante' // Por defecto, todos son aspirantes en esta vista
 }
 
+// Computed para obtener los meses finales disponibles (solo meses >= al mes inicial)
+const mesesFinalesDisponibles = computed(() => {
+  const meses = [
+    { value: '1', label: 'Enero' },
+    { value: '2', label: 'Febrero' },
+    { value: '3', label: 'Marzo' },
+    { value: '4', label: 'Abril' },
+    { value: '5', label: 'Mayo' },
+    { value: '6', label: 'Junio' },
+    { value: '7', label: 'Julio' },
+    { value: '8', label: 'Agosto' },
+    { value: '9', label: 'Septiembre' },
+    { value: '10', label: 'Octubre' },
+    { value: '11', label: 'Noviembre' },
+    { value: '12', label: 'Diciembre' }
+  ]
+  
+  if (!filtros.value.mesInicial) return meses
+  
+  const mesInicial = parseInt(filtros.value.mesInicial)
+  return meses.filter(mes => parseInt(mes.value) >= mesInicial)
+})
+
 const usuariosFiltrados = computed(() => {
   let resultado = usuarios.value
 
@@ -503,14 +542,16 @@ const usuariosFiltrados = computed(() => {
     })
   }
 
-  // Filtro por rango de meses (solo si hay año seleccionado y rango de meses seleccionado)
-  if (filtros.value.anio && filtros.value.rangoMeses) {
-    const [mesInicio, mesFin] = filtros.value.rangoMeses.split('-').map(Number)
+  // Filtro por rango de meses (mes inicial y final)
+  if (filtros.value.anio && filtros.value.mesInicial) {
+    const mesInicial = parseInt(filtros.value.mesInicial)
+    const mesFinal = filtros.value.mesFinal ? parseInt(filtros.value.mesFinal) : mesInicial
+    
     resultado = resultado.filter(usuario => {
       if (!usuario.createdAt) return false
       const fecha = new Date(usuario.createdAt)
       const mes = fecha.getMonth() + 1 // getMonth() es 0-indexado
-      return mes >= mesInicio && mes <= mesFin
+      return mes >= mesInicial && mes <= mesFinal
     })
   }
 
@@ -567,15 +608,26 @@ watch(usuariosFiltrados, (nuevosUsuarios) => {
   paginacionLocal.value.paginaActual = 1
 })
 
-// Watcher para resetear paginación cuando cambian los filtros
 watch(
-  [() => filtros.value.busqueda, () => filtros.value.anio, () => filtros.value.rangoMeses],
-  ([, nuevoAnio,], [, prevAnio]) => {
+  [() => filtros.value.busqueda, () => filtros.value.anio, () => filtros.value.mesInicial, () => filtros.value.mesFinal],
+  ([, nuevoAnio, nuevoMesInicial], [, prevAnio, prevMesInicial]) => {
     if (paginacionLocal.value.paginaActual !== 1) {
       paginacionLocal.value.paginaActual = 1
     }
+    
+    // Si se cambia el año, limpiar los filtros de meses
     if (nuevoAnio !== prevAnio) {
-      filtros.value.rangoMeses = ''
+      filtros.value.mesInicial = ''
+      filtros.value.mesFinal = ''
+    }
+    
+    // Si se cambia el mes inicial y es mayor que el mes final, limpiar el mes final
+    if (nuevoMesInicial !== prevMesInicial && filtros.value.mesFinal) {
+      const mesInicial = parseInt(nuevoMesInicial || '0')
+      const mesFinal = parseInt(filtros.value.mesFinal)
+      if (mesInicial > mesFinal) {
+        filtros.value.mesFinal = ''
+      }
     }
   }
 )
@@ -955,13 +1007,15 @@ const exportarExcel = async () => {
       
       // Definir mapeo y orden de columnas
       const columnDefinitions = [
-        { key: 'id', title: 'ID', width: 8, type: 'number' },
+       
         { key: 'curp', title: 'CURP', width: 22, type: 'text' },
         { key: 'nombre', title: 'Nombre', width: 18, type: 'text' },
         { key: 'apellidos', title: 'Apellidos', width: 18, type: 'text' },
         { key: 'email', title: 'Correo Electrónico', width: 30, type: 'text' },
-        { key: 'createdAt', title: 'Año de Creación', width: 15, type: 'year' },
-        { key: 'total_respuestas', title: 'Total Respuestas', width: 18, type: 'number' },
+        { key: 'createdAt', title: 'Fecha de Creación', width: 15, type: 'date' },
+       
+        { key: 'escuela_procedencia', title: 'Escuela de Procedencia', width: 25, type: 'text' },
+        {key: 'genero', title: 'Género', width: 12, type: 'text' },
         { key: 'carrera_recomendada', title: 'Carrera Recomendada', width: 25, type: 'text' }
       ]
       
@@ -970,6 +1024,20 @@ const exportarExcel = async () => {
         const newRow = {}
         columnDefinitions.forEach(col => {
           let value = row[col.key] || ''
+            if (col.type === 'date' && value) {
+            // Convertir fecha a formato solo fecha (DD/MM/YYYY)
+            try {
+              const fecha = new Date(value)
+              value = fecha.toLocaleDateString('es-MX', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })
+            } catch (error) {
+              console.warn('Error al parsear fecha:', value)
+              value = value // Mantener valor original si hay error
+            }
+          }
           
           // Formatear según el tipo de columna
           if (col.key === 'carrera_recomendada') {
@@ -1223,13 +1291,15 @@ const eliminarUsuariosPorAnio = async () => {
   
   const usuariosAEliminar = usuariosFiltrados.value
   const anioSeleccionado = filtros.value.anio
-  const rangoMesesSeleccionado = filtros.value.rangoMeses
+  const mesInicial = filtros.value.mesInicial
+  const mesFinal = filtros.value.mesFinal
   
   // Configurar datos para el modal personalizado
   datosPendientesEliminacion.value = {
     usuarios: usuariosAEliminar,
     anio: anioSeleccionado,
-    rangoMeses: rangoMesesSeleccionado,
+    mesInicial: mesInicial,
+    mesFinal: mesFinal,
     cantidad: usuariosAEliminar.length
   }
   
@@ -1259,6 +1329,8 @@ const cerrarModalEliminacion = () => {
   datosPendientesEliminacion.value = {
     usuarios: [],
     anio: null,
+    mesInicial: '',
+    mesFinal: '',
     cantidad: 0
   }
 }
@@ -1268,8 +1340,8 @@ const confirmarEliminacionMasiva = async () => {
     return // No permitir confirmar hasta que pase el tiempo
   }
 
-  // Guardar año y rango de meses antes de cerrar el modal (para mostrar en el mensaje)
-  const { usuarios: usuariosAEliminar, anio: anioSeleccionado, rangoMeses: rangoMesesSeleccionado } = datosPendientesEliminacion.value
+  // Guardar datos antes de cerrar el modal (para mostrar en el mensaje)
+  const { usuarios: usuariosAEliminar, anio: anioSeleccionado, mesInicial, mesFinal } = datosPendientesEliminacion.value
 
   cerrarModalEliminacion()
 
@@ -1277,6 +1349,7 @@ const confirmarEliminacionMasiva = async () => {
     eliminandoPorAnio.value = true
     let exitosos = 0
     let fallidos = 0
+    
     // Eliminar usuarios uno por uno (se podría optimizar con una API de eliminación masiva)
     for (const usuario of usuariosAEliminar) {
       try {
@@ -1302,23 +1375,31 @@ const confirmarEliminacionMasiva = async () => {
     // Actualizar contadores de paginación
     paginacion.value.total = Math.max(0, paginacion.value.total - exitosos)
     
-    // Limpiar filtro de año después de la eliminación
+    // Limpiar filtros después de la eliminación
     filtros.value.anio = ''
+    filtros.value.mesInicial = ''
+    filtros.value.mesFinal = ''
     
     // Resetear paginación a la primera página
     paginacionLocal.value.paginaActual = 1
     
     // Mostrar resultado
     let mensajeRango = ''
-    if (rangoMesesSeleccionado) {
-      // Convertir rango de meses a texto legible
+    if (mesInicial) {
       const meses = [
         '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
       ]
-      const [mesInicio, mesFin] = rangoMesesSeleccionado.split('-').map(Number)
-      mensajeRango = ` (${meses[mesInicio]} - ${meses[mesFin]})`
+      const mesInicialTexto = meses[parseInt(mesInicial)]
+      const mesFinalTexto = mesFinal ? meses[parseInt(mesFinal)] : mesInicialTexto
+      
+      if (mesInicial === mesFinal || !mesFinal) {
+        mensajeRango = ` (${mesInicialTexto})`
+      } else {
+        mensajeRango = ` (${mesInicialTexto} - ${mesFinalTexto})`
+      }
     }
+    
     if (fallidos === 0) {
       await showSuccess(
         `Se eliminaron exitosamente ${exitosos} usuarios del año ${anioSeleccionado}${mensajeRango}`,
@@ -1339,20 +1420,24 @@ const confirmarEliminacionMasiva = async () => {
   }
 }
 
-const mostrarModalCrear = () => {
-  // Implementar creación de usuario
-  console.log('Crear nuevo usuario')
-}
-
-const exportarUsuarios = async () => {
-  try {
-    exportando.value = true
-    // Implementar exportación
-    console.log('Exportar usuarios')
-  } catch (err) {
-    console.error('Error al exportar:', err)
-  } finally {
-    exportando.value = false
+// Función helper para obtener el texto del rango de meses
+const obtenerTextoRangoMeses = () => {
+  const { mesInicial, mesFinal } = datosPendientesEliminacion.value
+  
+  if (!mesInicial) return ''
+  
+  const meses = [
+    '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ]
+  
+  const mesInicialTexto = meses[parseInt(mesInicial)]
+  const mesFinalTexto = mesFinal ? meses[parseInt(mesFinal)] : mesInicialTexto
+  
+  if (mesInicial === mesFinal || !mesFinal) {
+    return ` (${mesInicialTexto})`
+  } else {
+    return ` (${mesInicialTexto} - ${mesFinalTexto})`
   }
 }
 

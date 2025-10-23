@@ -106,6 +106,16 @@
           />
           <label for="genero-mujer" class="radio-label">Mujer</label>
         </div>
+         <div class="radio-option">
+          <input 
+            id="genero-otro" 
+            type="radio" 
+            v-model="genero" 
+            value="Otro" 
+            required
+          />
+          <label for="genero-otro" class="radio-label">Otro</label>
+        </div>
       </div>
     </div>
     
