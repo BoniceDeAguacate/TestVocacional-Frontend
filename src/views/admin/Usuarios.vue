@@ -1889,31 +1889,36 @@ onUnmounted(() => {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
 }
 
 .user-avatar {
-  width: 45px;
-  height: 45px;
+  flex-shrink: 0; /* Evita que el avatar se reduzca */
+  width: 50px; /* Tamaño fijo del avatar */
+  height: 50px;
   border-radius: 50%;
-  background: #FF671F;
+  background-color: #FF671F; /* Color de fondo para el avatar */
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 18px;
+  font-weight: bold;
+  color: #fff;
+  margin-right: 10px; /* Espaciado entre el avatar y los detalles */
+}
+
+.user-details {
+  flex-grow: 1; /* Permite que los detalles ocupen el espacio disponible */
+  min-width: 0; /* Evita que el contenedor colapse */
+  max-width: 200px; /* Define un tamaño máximo para el contenedor */
+  overflow: hidden; /* Oculta el contenido que exceda el contenedor */
+  text-overflow: ellipsis; /* Agrega puntos suspensivos al texto truncado */
+  white-space: nowrap; /* Evita que el texto se divida en varias líneas */
 }
 
 .user-name {
-  font-weight: 600;
-  color: #2c3e50;
-  font-size: 1rem;
-}
-
-.user-id {
-  font-size: 0.8rem;
-  color: #6c757d;
+  white-space: nowrap; /* Evita que el texto se divida en varias líneas */
+  overflow: hidden; /* Oculta el texto que exceda el contenedor */
+  text-overflow: ellipsis; /* Agrega puntos suspensivos al texto truncado */
 }
 
 .curp-badge {
