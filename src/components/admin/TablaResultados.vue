@@ -183,7 +183,7 @@ export default {
     },
     
     totalRespuestasPositivas() {
-      return this.resultados.reduce((sum, r) => sum + r.total_respuestas_usuario, 0);
+      return this.resultados.reduce((sum, r) => (+sum) + (+r.total_respuestas_usuario), 0);
     },
     
     materiasAgrupadas() {
